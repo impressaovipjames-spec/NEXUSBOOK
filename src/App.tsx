@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { Zap, Sparkles, Loader2, Download, Key, CheckCircle } from 'lucide-react'
 import logo from './assets/logo.png'
-import { generateEbook, MultiLanguageEbook } from './lib/gemini'
+import { generateEbook } from './lib/gemini'
+import type { MultiLanguageEbook } from './lib/gemini'
 import { createPDF } from './lib/pdf'
 
 const data = [

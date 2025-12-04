@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import { EbookContent } from "./gemini";
+import type { EbookContent } from "./gemini";
 
 export function createPDF(content: EbookContent): jsPDF {
     const doc = new jsPDF();
