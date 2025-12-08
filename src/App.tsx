@@ -64,34 +64,43 @@ interface ChatAreaProps {
 const SidebarNichos: React.FC<SidebarNichosProps> = ({ onSelectNicho, selectedTemplate }) => {
     return (
         <div className="h-full flex flex-col p-4 text-white bg-white/5 rounded-2xl shadow-xl border border-white/5 overflow-hidden">
-            <h2 className="text-sm font-semibold mb-4 flex items-center gap-2 text-orange-400">
+            <h2 className="text-sm font-semibold mb-6 flex items-center gap-2 text-orange-400">
                 <Flame className="w-4 h-4" />
                 Nichos em Alta
             </h2>
 
-            <div className="flex gap-2 items-end justify-between h-40 px-2 mb-6 border-b border-white/5 pb-4">
-                {nichosQuentes.slice(0, 7).map((n, i) => (
-                    <motion.div
-                        key={i}
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: `${(n.temperatura / 100) * 100}%` }}
-                        transition={{ duration: 0.6, delay: i * 0.1 }}
-                        className="flex flex-col items-center group cursor-pointer w-full relative"
-                        onClick={() => onSelectNicho(n.nome)}
-                    >
-                        {/* Tooltip */}
-                        <div className="absolute -top-8 opacity-0 group-hover:opacity-100 transition-opacity bg-black/90 text-[10px] px-2 py-1 rounded whitespace-nowrap pointer-events-none z-20">
-                            {n.nome} ({n.temperatura}°)
+            {/* Termômetro Visual com Labels */}
+            <div className="flex gap-1 items-end justify-between h-[180px] px-1 mb-8">
+                {nichosQuentes.slice(0, 6).map((n, i) => (
+                    <div key={i} className="flex flex-col items-center h-full justify-end w-full group cursor-pointer" onClick={() => onSelectNicho(n.nome)}>
+
+                        {/* Bar Container */}
+                        <div className="w-full relative flex-1 flex items-end px-1">
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: `${(n.temperatura / 100) * 80}%` }} // Max 80% height
+                                transition={{ duration: 0.6, delay: i * 0.1 }}
+                                className="w-full rounded-t-sm shadow-lg group-hover:brightness-125 transition-all opacity-80 group-hover:opacity-100"
+                                style={{
+                                    background: "linear-gradient(to top, #F7D44C, #FF9A32, #FF4A24)",
+                                    minHeight: '4px'
+                                }}
+                            >
+                                {/* Hover Tooltip (Detalhado) */}
+                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/90 text-[10px] px-2 py-1 rounded-md border border-white/10 whitespace-nowrap z-20 pointer-events-none">
+                                    <div className="font-bold text-orange-400">{n.nome}</div>
+                                    <div className="text-white/60">{n.temperatura}° Temperatura</div>
+                                </div>
+                            </motion.div>
                         </div>
 
-                        <div
-                            className="w-full rounded-t-sm shadow-lg group-hover:brightness-110 transition-all opacity-80 group-hover:opacity-100"
-                            style={{
-                                background: "linear-gradient(to top, #F7D44C, #FF9A32, #FF4A24)",
-                                minHeight: '10%'
-                            }}
-                        />
-                    </motion.div>
+                        {/* Label Abaixo da Barra */}
+                        <div className="h-16 w-full flex items-start justify-center pt-2 border-t border-white/5">
+                            <span className="text-[9px] text-white/50 group-hover:text-white transition-colors rotate-[-90deg] whitespace-nowrap origin-top w-[80px] mt-1 text-right">
+                                {n.nome.length > 15 ? n.nome.substring(0, 15) + '...' : n.nome}
+                            </span>
+                        </div>
+                    </div>
                 ))}
             </div>
 
@@ -105,8 +114,8 @@ const SidebarNichos: React.FC<SidebarNichosProps> = ({ onSelectNicho, selectedTe
                         key={t.id}
                         onClick={() => onSelectNicho(t.nome.split(' ')[0])} // Simplificação para demo
                         className={`w-full text-left p-3 rounded-xl border transition-all text-xs group ${selectedTemplate?.id === t.id
-                            ? "bg-purple-500/20 border-purple-500/50 text-white"
-                            : "bg-white/5 border-transparent hover:bg-white/10 text-white/70"
+                                ? "bg-purple-500/20 border-purple-500/50 text-white"
+                                : "bg-white/5 border-transparent hover:bg-white/10 text-white/70"
                             }`}
                     >
                         <div className="font-medium group-hover:text-white mb-0.5 flex items-center gap-2">
@@ -217,8 +226,8 @@ const RightPanel: React.FC<RightPanelProps> = ({
                         onClick={onGenerate}
                         disabled={!structureApproved || isGenerating}
                         className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${structureApproved
-                            ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:scale-[1.02] text-white shadow-lg shadow-green-900/20"
-                            : "bg-white/5 text-white/30 cursor-not-allowed"
+                                ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:scale-[1.02] text-white shadow-lg shadow-green-900/20"
+                                : "bg-white/5 text-white/30 cursor-not-allowed"
                             }`}
                     >
                         {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
@@ -315,8 +324,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, onSendMessage, isThinking
                         >
                             <div
                                 className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed shadow-lg ${msg.role === 'user'
-                                    ? "bg-[#7C3AED] text-white rounded-br-none"
-                                    : "bg-[#1e2029] text-gray-100 border border-white/5 rounded-bl-none"
+                                        ? "bg-[#7C3AED] text-white rounded-br-none"
+                                        : "bg-[#1e2029] text-gray-100 border border-white/5 rounded-bl-none"
                                     }`}
                             >
                                 <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -457,12 +466,9 @@ export default function App() {
 
         if (messages.length > 0) {
             handleSendMessage(`Quero criar um eBook sobre "${nichoNome}"`)
-            return // Add return to prevent double message or loop. The logic below startChat also calls handleSendMessage.
-            // Wait, if messages > 0, we just send message.
-            // Else we start chat AND send message.
+            return
         } else {
             startChat(template || undefined)
-            // Use timeout to let startChat state update finish
             setTimeout(() => handleSendMessage(`Quero criar um eBook sobre "${nichoNome}"`), 500)
         }
     }
@@ -517,6 +523,7 @@ export default function App() {
         startChat()
     }
 
+
     return (
         <div className="min-h-screen bg-[#0F0B2A] text-white font-sans overflow-hidden flex flex-col">
             <style>{`
@@ -537,11 +544,15 @@ export default function App() {
                     <span className="text-2xl font-bold tracking-tight text-white drop-shadow-[0_0_15px_rgba(22,224,193,0.3)]">
                         NEXUS<span className="text-[#16E0C1]">BOOK</span>
                     </span>
-                    <div className="px-2 py-0.5 rounded text-[10px] font-bold bg-white/5 border border-white/10 text-white/50 tracking-widest uppercase">Solaris v4.1</div>
+                    {/* Versão removida conforme solicitado */}
                 </div>
 
-                <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-8 text-xs font-medium text-white/40 uppercase tracking-widest">
-                    <span>VIPNEXUS IA</span>
+                {/* VIPNEXUS IA - BRANDING DESTAQUE */}
+                <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-3">
+                    <Sparkles className="w-5 h-5 text-[#16E0C1] animate-pulse" />
+                    <span className="text-xl font-black tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-white via-[#16E0C1] to-[#7C3AED] drop-shadow-[0_0_15px_rgba(124,58,237,0.5)]">
+                        VIPNEXUS IA
+                    </span>
                 </div>
 
                 <div className="flex items-center gap-4">
