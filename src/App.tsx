@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-    Send, Flame, BookOpen, Sparkles, Download, Eye,
+    Send, Flame, BookOpen, Sparkles,
     Key, X, FileText,
-    Loader2, CheckCircle2, MessageSquare, LayoutGrid
+    Loader2, MessageSquare, LayoutGrid
 } from 'lucide-react'
 
 import {
@@ -51,10 +51,21 @@ export default function App() {
     // Refs
     const chatEndRef = useRef<HTMLDivElement>(null)
 
+    // Histórico de Conversas
+    const [history, setHistory] = useState<{ id: string, title: string, date: string, messages: ChatMessage[] }[]>([])
+
     // Carregar API Key do localStorage
     useEffect(() => {
         const stored = localStorage.getItem('gemini_api_key')
         if (stored) setApiKey(stored)
+    }, [])
+
+    // Carregar histórico
+    useEffect(() => {
+        const saved = localStorage.getItem('nexus_chat_history')
+        if (saved) {
+            setHistory(JSON.parse(saved))
+        }
     }, [])
 
     // Auto-scroll do chat
@@ -70,6 +81,29 @@ export default function App() {
         }
         setStructureApproved(isStructureApproved(messages))
     }, [messages])
+
+    // Salvar no histórico
+    useEffect(() => {
+        if (messages.length > 0) {
+            const currentId = localStorage.getItem('current_chat_id') || Date.now().toString()
+            localStorage.setItem('current_chat_id', currentId)
+
+            const title = detectedStructure?.titulo || messages[0]?.content.slice(0, 30) || 'Novo eBook'
+
+            const newHistoryItem = {
+                id: currentId,
+                title: title,
+                date: new Date().toLocaleDateString(),
+                messages: messages
+            }
+
+            const otherHistory = history.filter(h => h.id !== currentId)
+            const newHistory = [newHistoryItem, ...otherHistory]
+
+            setHistory(newHistory)
+            localStorage.setItem('nexus_chat_history', JSON.stringify(newHistory))
+        }
+    }, [messages, detectedStructure]) // Removed 'history' from dependency array to avoid infinite loop if reference changes
 
     // Salvar API Key
     const handleSaveKey = () => {
@@ -191,60 +225,6 @@ Preço sugerido: ${template.precoSugerido}`
         }
     }
 
-    // Recomeçar
-    const handleReset = () => {
-        setAppState('briefing')
-        setMessages([])
-        setDetectedStructure(null)
-        setStructureApproved(false)
-        setEbookData(null)
-        setSelectedTemplate(null)
-        setGenerationProgress(0)
-        setGenerationStatus('')
-    }
-
-    // Plataformas de venda
-    const platformsInfo = {
-        pt: { flag: '🇧🇷', name: 'Português', platforms: ['Hotmart', 'Eduzz', 'Amazon KDP'] },
-        en: { flag: '🇺🇸', name: 'English', platforms: ['Amazon KDP', 'Gumroad', 'Payhip'] },
-        es: { flag: '🇪🇸', name: 'Español', platforms: ['Hotmart', 'Amazon KDP'] },
-        fr: { flag: '🇫🇷', name: 'Français', platforms: ['Amazon KDP', 'Gumroad'] }
-    }
-
-    // Histórico de Conversas
-    const [history, setHistory] = useState<{ id: string, title: string, date: string, messages: ChatMessage[] }[]>([])
-
-    // Carregar histórico
-    useEffect(() => {
-        const saved = localStorage.getItem('nexus_chat_history')
-        if (saved) {
-            setHistory(JSON.parse(saved))
-        }
-    }, [])
-
-    // Salvar no histórico
-    useEffect(() => {
-        if (messages.length > 0) {
-            const currentId = localStorage.getItem('current_chat_id') || Date.now().toString()
-            localStorage.setItem('current_chat_id', currentId)
-
-            const title = detectedStructure?.titulo || messages[0]?.content.slice(0, 30) || 'Novo eBook'
-
-            const newHistoryItem = {
-                id: currentId,
-                title: title,
-                date: new Date().toLocaleDateString(),
-                messages: messages
-            }
-
-            const otherHistory = history.filter(h => h.id !== currentId)
-            const newHistory = [newHistoryItem, ...otherHistory]
-
-            setHistory(newHistory)
-            localStorage.setItem('nexus_chat_history', JSON.stringify(newHistory))
-        }
-    }, [messages, detectedStructure])
-
     // Carregar conversa do histórico
     const loadChat = (chatId: string) => {
         const chat = history.find(h => h.id === chatId)
@@ -266,86 +246,78 @@ Preço sugerido: ${template.precoSugerido}`
         startChat()
     }
 
+    /*
+    const handleReset = () => {
+        setAppState('briefing')
+        setMessages([])
+        setDetectedStructure(null)
+        setStructureApproved(false)
+        setEbookData(null)
+        setSelectedTemplate(null)
+        setGenerationProgress(0)
+        setGenerationStatus('')
+    }
+    */
+
+    // UI Render
     return (
-        <div className="min-h-screen bg-[#080812] text-white flex flex-col overflow-hidden font-sans">
-            {/* FORÇANDO O CSS AQUI PARA GARANTIR QUE CARREGUE */}
+        <div className="h-screen w-full flex flex-col bg-[#080812] text-white overflow-hidden font-sans">
             <style>{`
-                .dashboard-container {
-                    display: grid;
-                    grid-template-columns: 260px 1fr 300px;
-                    gap: 12px;
-                    height: calc(100vh - 64px);
-                    padding: 12px;
-                    overflow: hidden;
-                }
-                @media (max-width: 1200px) {
-                    .dashboard-container { grid-template-columns: 220px 1fr 260px; }
-                }
-                @media (max-width: 1024px) {
-                    .dashboard-container { grid-template-columns: 200px 1fr 240px; }
-                }
-                @media (max-width: 768px) {
-                    .dashboard-container { 
-                        display: flex; 
-                        flex-direction: column; 
-                        height: auto; 
-                        overflow-y: auto;
-                    }
-                }
+                /* Layout Defaults */
+                .dashboard-container { display: flex; height: calc(100vh - 64px - 30px); gap: 12px; padding: 12px; background: #080812; color: #e2e8f0; overflow: hidden; }
+                .panel { background: #12121f; border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; }
+                .panel-header { padding: 12px 16px; background: rgba(0, 0, 0, 0.2); border-bottom: 1px solid rgba(255, 255, 255, 0.05); font-weight: 600; font-size: 0.875rem; color: white; display: flex; items-center; gap: 8px; shrink: 0; }
+                .panel-content { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #4c1d95 #1e1e2e; }
                 
-                .panel {
-                    background: rgba(255, 255, 255, 0.03);
-                    border: 1px solid rgba(255, 255, 255, 0.08);
-                    border-radius: 12px;
-                    display: flex;
-                    flex-direction: column;
-                    overflow: hidden;
-                }
-                .panel-header {
-                    padding: 12px;
-                    background: rgba(255, 255, 255, 0.02);
-                    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-                    font-weight: 600;
+                /* Webkit Scrollbar */
+                ::-webkit-scrollbar { width: 6px; height: 6px; }
+                ::-webkit-scrollbar-track { background: #1e1e2e; }
+                ::-webkit-scrollbar-thumb { background: #4c1d95; border-radius: 3px; }
+                ::-webkit-scrollbar-thumb:hover { background: #6d28d9; }
+
+                .template-btn-compact { width: 100%; text-align: left; padding: 10px; border-radius: 8px; border-left: 3px solid transparent; transition: all 0.2s; display: flex; items-center; gap: 10px; background: transparent; color: rgba(255, 255, 255, 0.6); }
+                .template-btn-compact:hover { background: rgba(255, 255, 255, 0.05); color: white; }
+                .template-btn-compact.selected { background: rgba(124, 58, 237, 0.1); border-left: 3px solid #7c3aed; }
+
+                /* Chat */
+                .chat-area { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+                .chat-input-area { padding: 12px; background: rgba(0, 0, 0, 0.2); border-top: 1px solid rgba(255, 255, 255, 0.05); }
+
+                /* Footer */
+                .app-footer {
+                    height: 30px;
                     display: flex;
                     align-items: center;
-                    gap: 8px;
-                    font-size: 14px;
+                    justify-content: center;
+                    font-size: 10px;
+                    color: rgba(255, 255, 255, 0.3);
+                    border-top: 1px solid rgba(255, 255, 255, 0.05);
+                    background: #080812;
+                    letter-spacing: 1px;
                 }
-                .panel-content {
-                    padding: 12px;
-                    overflow-y: auto;
-                    flex: 1;
-                }
-                
-                /* Scrollbar */
-                ::-webkit-scrollbar { width: 6px; height: 6px; }
-                ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
-                ::-webkit-scrollbar-thumb { background: #4c1d95; border-radius: 3px; }
             `}</style>
 
             {/* Header */}
             <header className="h-16 border-b border-white/10 flex items-center justify-between px-6 bg-[#0f0f1a] shrink-0 z-10 box-border">
                 <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center font-bold text-white text-xl">N</div>
-                        <span className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-white to-white/70">NEXUSBOOK</span>
-                    </div>
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center font-bold text-white text-xl">N</div>
+                    <span className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-white to-white/70">NEXUSBOOK</span>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                     <button
                         onClick={handleNewChat}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium transition-colors"
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase tracking-wide transition-colors"
                     >
-                        <MessageSquare className="w-4 h-4" />
+                        <MessageSquare className="w-3 h-3" />
                         Nova Conversa
                     </button>
 
                     <button
                         onClick={() => setShowKeyModal(true)}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm transition-colors text-white/70"
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${apiKey ? 'border-green-500/30 text-green-400 bg-green-500/10' : 'border-white/10 text-white/60 hover:bg-white/5'}`}
                     >
-                        <Key className="w-4 h-4" />
+                        <Key className="w-3 h-3" />
                         {apiKey ? 'API Conectada' : 'Configurar API'}
                     </button>
                 </div>
@@ -358,43 +330,23 @@ Preço sugerido: ${template.precoSugerido}`
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-lg font-bold flex items-center gap-2">
                                 <Key className="w-5 h-5 text-yellow-400" />
-                                API Key Google Gemini
+                                Configurar Google Gemini
                             </h3>
-                            <button
-                                onClick={() => setShowKeyModal(false)}
-                                className="text-white/50 hover:text-white"
-                            >
+                            <button onClick={() => setShowKeyModal(false)} className="text-white/50 hover:text-white">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
-
-                        <p className="text-sm text-white/60 mb-4">
-                            Cole sua chave da API do Google Gemini (gratuita):
-                        </p>
-
+                        <p className="text-sm text-white/60 mb-4">Cole sua chave da API do Google Gemini (gratuita):</p>
                         <input
                             type="text"
                             value={keyInput}
                             onChange={(e) => setKeyInput(e.target.value)}
-                            placeholder="AIzaSy..."
-                            className="chat-input w-full mb-4"
-                            onKeyDown={(e) => e.key === 'Enter' && handleSaveKey()}
+                            placeholder="Cole sua chave AIzaSy... aqui"
+                            className="w-full bg-[#080812] border border-white/10 rounded-lg p-3 text-sm text-white focus:border-purple-500 focus:outline-none mb-4"
                         />
-
                         <div className="flex gap-3">
-                            <button
-                                onClick={() => setShowKeyModal(false)}
-                                className="btn btn-secondary flex-1"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleSaveKey}
-                                className="btn btn-primary flex-1"
-                                disabled={!keyInput.trim()}
-                            >
-                                Salvar
-                            </button>
+                            <button onClick={() => setShowKeyModal(false)} className="flex-1 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm">Cancelar</button>
+                            <button onClick={handleSaveKey} className="flex-1 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold">Salvar Chave</button>
                         </div>
                     </div>
                 </div>
@@ -410,54 +362,42 @@ Preço sugerido: ${template.precoSugerido}`
                 />
             )}
 
-            {/* Main Content - Dashboard Layout */}
+            {/* Main Dashboard */}
             <main className="dashboard-container">
-
                 {/* COLUNA ESQUERDA: Nichos + Templates */}
-                <div className="flex flex-col gap-3 overflow-hidden h-full">
-
-                    {/* Nichos Quentes (Compacto) */}
-                    <div className="panel h-1/3 min-h-[200px] flex flex-col">
+                <div className="flex flex-col gap-3 h-full overflow-hidden w-1/4 min-w-[250px] max-w-[350px]">
+                    <div className="panel h-1/3 min-h-[180px]">
                         <div className="panel-header">
-                            <Flame className="w-4 h-4 text-orange-400" />
-                            <span>Nichos em Alta</span>
+                            <Flame className="w-3 h-3 text-orange-400" />
+                            Nichos em Alta
                         </div>
-                        <div className="panel-content flex-1 overflow-y-auto space-y-2">
+                        <div className="panel-content overflow-y-auto p-2 space-y-1">
                             {nichosQuentes.slice(0, 5).map((nicho) => (
-                                <div
-                                    key={nicho.nome}
-                                    onClick={() => handleSelectNicho(nicho.nome)}
-                                    className="niche-card py-2 px-3"
-                                >
-                                    <div className="flex items-center justify-between mb-1">
-                                        <span className="text-xs font-medium truncate">{nicho.nome}</span>
-                                        <span className="text-[10px] text-orange-400 font-bold">{nicho.temperatura}°</span>
+                                <div key={nicho.nome} onClick={() => handleSelectNicho(nicho.nome)} className="cursor-pointer p-2 rounded hover:bg-white/5 group">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="text-xs font-medium text-white/80 group-hover:text-white truncate">{nicho.nome}</span>
+                                        <span className="text-[10px] text-orange-400">{nicho.temperatura}°</span>
                                     </div>
-                                    <div className="niche-temp-bar h-1">
-                                        <div className="niche-temp-fill" style={{ width: `${nicho.temperatura}%` }} />
+                                    <div className="h-0.5 bg-white/10 rounded-full overflow-hidden">
+                                        <div className="h-full bg-gradient-to-r from-orange-500 to-red-500" style={{ width: `${nicho.temperatura}%` }} />
                                     </div>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Templates */}
-                    <div className="panel flex-1 flex flex-col">
+                    <div className="panel flex-1">
                         <div className="panel-header">
-                            <LayoutGrid className="w-4 h-4 text-purple-400" />
-                            <span>Templates</span>
+                            <LayoutGrid className="w-3 h-3 text-purple-400" />
+                            Templates
                         </div>
-                        <div className="panel-content flex-1 overflow-y-auto grid grid-cols-1 gap-2">
+                        <div className="panel-content overflow-y-auto p-0">
                             {templates.map((template) => (
-                                <button
-                                    key={template.id}
-                                    onClick={() => startChat(template)}
-                                    className={`template-btn ${selectedTemplate?.id === template.id ? 'selected' : ''}`}
-                                >
-                                    <span className="template-icon text-lg">{template.icone}</span>
-                                    <div className="flex flex-col items-start gap-0.5 min-w-0">
-                                        <span className="text-xs font-medium truncate w-full">{template.nome}</span>
-                                        <span className="text-[10px] text-white/40">{template.publicoAlvo}</span>
+                                <button key={template.id} onClick={() => startChat(template)} className={`template-btn-compact ${selectedTemplate?.id === template.id ? 'selected' : ''}`}>
+                                    <span className="text-xl">{template.icone}</span>
+                                    <div className="flex flex-col overflow-hidden">
+                                        <span className="text-sm font-medium truncate">{template.nome}</span>
+                                        <span className="text-[10px] text-white/40 truncate">{template.publicoAlvo}</span>
                                     </div>
                                 </button>
                             ))}
@@ -465,197 +405,125 @@ Preço sugerido: ${template.precoSugerido}`
                     </div>
                 </div>
 
-                {/* COLUNA CENTRAL: Chat (Ocupa tudo se estiver "briefing" ou "generating") */}
-                <div className="panel flex flex-col h-full overflow-hidden border-indigo-500/20 shadow-lg shadow-indigo-500/5">
+                {/* COLUNA CENTRAL: Chat */}
+                <div className="panel h-full flex-1 border-t-2 border-t-purple-500">
+                    <div className="panel-header bg-[#151520]">
+                        <MessageSquare className="w-3 h-3 text-cyan-400" />
+                        Assistente Criativo
+                        {isThinking && <span className="ml-auto text-xs text-purple-300 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Criando...</span>}
+                        {appState === 'generating' && (
+                            <span className="ml-auto text-xs text-green-400 flex items-center gap-2">
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                {generationStatus} ({generationProgress}%)
+                            </span>
+                        )}
+                    </div>
 
-                    {appState === 'briefing' ? (
-                        <>
-                            <div className="panel-header bg-white/5">
-                                <MessageSquare className="w-4 h-4 text-cyan-400" />
-                                <span>Assistente Criativo</span>
-                                {isThinking && (
-                                    <div className="flex items-center gap-2 ml-auto text-xs text-purple-300">
-                                        <Loader2 className="w-3 h-3 animate-spin" />
-                                        Processando...
-                                    </div>
-                                )}
+                    <div className="chat-area">
+                        {messages.length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center text-center opacity-50 p-8">
+                                <BookOpen className="w-12 h-12 mb-4 text-white/20" />
+                                <p className="text-sm">Selecione um nicho/template ao lado<br />ou digite abaixo para começar.</p>
                             </div>
-
-                            <div className="chat-container flex-1 min-h-0 relative">
-                                <div className="chat-messages p-4">
-                                    {messages.length === 0 ? (
-                                        <div className="flex-1 flex flex-col items-center justify-center text-center p-8 h-full opacity-50">
-                                            <BookOpen className="w-16 h-16 text-white/20 mb-4" />
-                                            <h3 className="font-medium text-lg mb-2">Editor Vazio</h3>
-                                            <p className="text-sm text-white/50 max-w-xs mx-auto">
-                                                Escolha um template ao lado ou digite abaixo para começar seu eBook.
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            {messages.map((msg, i) => (
-                                                <div key={i} className={`chat-bubble ${msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'}`}>
-                                                    <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
-                                                </div>
-                                            ))}
-                                            {isThinking && (
-                                                <div className="chat-bubble chat-bubble-ai">
-                                                    <div className="flex items-center gap-2">
-                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                        <span className="text-sm text-white/70">Escrevendo...</span>
-                                                    </div>
-                                                </div>
-                                            )}
-                                            <div ref={chatEndRef} />
-                                        </>
-                                    )}
+                        ) : (
+                            messages.map((msg, i) => (
+                                <div key={i} className={`max-w-[85%] p-3 rounded-xl text-sm ${msg.role === 'user' ? 'bg-purple-600/20 border border-purple-500/30 self-end text-right' : 'bg-white/5 border border-white/10 self-start text-left'}`}>
+                                    {msg.content}
                                 </div>
+                            ))
+                        )}
+                        <div ref={chatEndRef} />
+                    </div>
 
-                                <div className="chat-input-container bg-[#0f0f1a] p-4 border-t border-white/5">
-                                    <input
-                                        type="text"
-                                        value={chatInput}
-                                        onChange={(e) => setChatInput(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                                        placeholder="Digite aqui (ex: 'Quero um ebook sobre dietas')..."
-                                        className="chat-input bg-[#1a1a2e]"
-                                        disabled={isThinking}
-                                    />
-                                    <button
-                                        onClick={handleSendMessage}
-                                        disabled={!chatInput.trim() || isThinking}
-                                        className="btn btn-primary btn-icon shrink-0"
-                                    >
-                                        <Send className="w-5 h-5" />
-                                    </button>
-                                </div>
-                            </div>
-                        </>
-                    ) : appState === 'generating' ? (
-                        <div className="h-full flex flex-col items-center justify-center p-8 text-center">
-                            <div className="generation-spinner w-20 h-20 mb-6" />
-                            <h2 className="text-2xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
-                                Materializando seu eBook...
-                            </h2>
-                            <p className="text-white/60 mb-8 max-w-md mx-auto">{generationStatus}</p>
-                            <div className="w-full max-w-md bg-white/5 rounded-full h-2 mb-2 overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-purple-500 to-cyan-500 transition-all duration-300" style={{ width: `${generationProgress}%` }} />
-                            </div>
-                            <p className="text-xs text-white/30">{generationProgress}% Concluído</p>
-                        </div>
-                    ) : (
-                        <div className="h-full flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
-                            <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mb-6 ring-4 ring-green-500/10">
-                                <CheckCircle2 className="w-10 h-10 text-green-400" />
-                            </div>
-                            <h2 className="text-3xl font-bold mb-4">Pronto!</h2>
-                            <p className="text-white/60 mb-8 max-w-lg mx-auto">
-                                Seu eBook <strong>"{detectedStructure?.titulo}"</strong> foi criado com sucesso em 4 idiomas.
-                            </p>
-
-                            <div className="grid grid-cols-2 gap-4 w-full max-w-2xl">
-                                {(['pt', 'en', 'es', 'fr'] as const).map(lang => (
-                                    <div key={lang} className="bg-white/5 p-4 rounded-xl border border-white/10 hover:border-purple-500/50 transition-colors flex items-center justify-between group">
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-2xl">{platformsInfo[lang].flag}</span>
-                                            <span className="font-medium text-sm">{platformsInfo[lang].name}</span>
-                                        </div>
-                                        <div className="flex gap-2 opacity-100 sm:opacity-50 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={() => setViewingLang(lang)} className="p-2 hover:bg-white/10 rounded-lg text-white/80"><Eye className="w-4 h-4" /></button>
-                                            <button onClick={() => handleDownload(lang)} className="p-2 hover:bg-green-500/20 rounded-lg text-green-400"><Download className="w-4 h-4" /></button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <button onClick={handleReset} className="mt-8 text-sm text-white/40 hover:text-white transition-colors flex items-center gap-2">
-                                <Sparkles className="w-4 h-4" /> Criar novo eBook
+                    <div className="chat-input-area">
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={chatInput}
+                                onChange={(e) => setChatInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                                placeholder="Descreva seu eBook..."
+                                className="flex-1 bg-[#080812] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-purple-500 focus:outline-none"
+                                disabled={isThinking}
+                            />
+                            <button
+                                onClick={handleSendMessage}
+                                disabled={!chatInput.trim() || isThinking}
+                                className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl w-12 flex items-center justify-center transition-colors"
+                            >
+                                <Send className="w-5 h-5" />
                             </button>
                         </div>
-                    )}
+                    </div>
                 </div>
 
                 {/* COLUNA DIREITA: Histórico + Estrutura */}
-                <div className="flex flex-col gap-3 overflow-hidden h-full">
-
-                    {/* Histórico Recente */}
-                    <div className="panel h-1/3 min-h-[200px] flex flex-col">
+                <div className="flex flex-col gap-3 h-full overflow-hidden w-1/4 min-w-[250px] max-w-[350px]">
+                    <div className="panel h-1/3 min-h-[150px]">
                         <div className="panel-header">
-                            <MessageSquare className="w-4 h-4 text-blue-400" />
-                            <span>Histórico</span>
+                            <MessageSquare className="w-3 h-3 text-blue-400" />
+                            Histórico
                         </div>
-                        <div className="panel-content flex-1 overflow-y-auto space-y-1">
+                        <div className="panel-content overflow-y-auto p-2 space-y-1">
                             {history.length === 0 ? (
-                                <p className="text-xs text-white/30 text-center py-4">Nenhuma conversa salva</p>
+                                <p className="text-xs text-center text-white/30 py-4">Vazio</p>
                             ) : (
                                 history.map(chat => (
-                                    <div
-                                        key={chat.id}
-                                        onClick={() => loadChat(chat.id)}
-                                        className="text-xs p-2 rounded-lg hover:bg-white/5 cursor-pointer flex flex-col gap-0.5 border border-transparent hover:border-white/10"
-                                    >
-                                        <span className="font-medium truncate text-white/80">{chat.title}</span>
-                                        <span className="text-[10px] text-white/30">{chat.date}</span>
+                                    <div key={chat.id} onClick={() => loadChat(chat.id)} className="p-2 rounded hover:bg-white/5 cursor-pointer text-xs border border-transparent hover:border-white/10">
+                                        <div className="font-medium truncate text-white/80">{chat.title}</div>
+                                        <div className="text-[10px] text-white/30">{chat.date}</div>
                                     </div>
                                 ))
                             )}
                         </div>
                     </div>
 
-                    {/* Estrutura */}
-                    <div className="panel flex-1 flex flex-col">
+                    <div className="panel flex-1">
                         <div className="panel-header">
-                            <FileText className="w-4 h-4 text-green-400" />
-                            <span>Estrutura</span>
+                            <FileText className="w-3 h-3 text-green-400" />
+                            Estrutura
                         </div>
-                        <div className="panel-content flex-1 overflow-y-auto p-4">
+                        <div className="panel-content overflow-y-auto p-3">
                             {detectedStructure ? (
-                                <div className="space-y-4 animate-in slide-in-from-right duration-300">
+                                <div className="space-y-3">
                                     <div>
-                                        <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Título</p>
-                                        <p className="font-bold text-sm leading-tight text-white/90">{detectedStructure.titulo}</p>
+                                        <div className="text-[10px] text-purple-400 mb-0.5 font-bold uppercase">Título</div>
+                                        <div className="text-sm font-bold leading-snug">{detectedStructure.titulo}</div>
                                     </div>
-
                                     <div>
-                                        <p className="text-[10px] uppercase tracking-wider text-white/40 mb-2">Capítulos</p>
-                                        <div className="space-y-2">
-                                            {detectedStructure.capitulos.map((cap, i) => (
-                                                <div key={i} className="flex gap-2 text-xs">
-                                                    <span className="font-mono text-purple-400/80">{(i + 1).toString().padStart(2, '0')}</span>
-                                                    <span className="text-white/70 line-clamp-2">{cap}</span>
-                                                </div>
-                                            ))}
-                                        </div>
+                                        <div className="text-[10px] text-white/40 mb-1 font-bold uppercase">Capítulos</div>
+                                        {detectedStructure.capitulos.map((cap, i) => (
+                                            <div key={i} className="flex gap-2 text-xs py-1 border-b border-white/5 last:border-0">
+                                                <span className="text-purple-500 font-mono w-4">{i + 1}</span>
+                                                <span className="text-white/70">{cap}</span>
+                                            </div>
+                                        ))}
                                     </div>
-
-                                    {structureApproved && (
-                                        <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-2">
-                                            <CheckCircle2 className="w-4 h-4 text-green-400" />
-                                            <span className="text-xs text-green-400 font-medium">Aprovado para geração</span>
-                                        </div>
-                                    )}
+                                    <button
+                                        onClick={handleGenerate}
+                                        disabled={!structureApproved}
+                                        className="w-full mt-2 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:bg-white/10 rounded-lg text-xs font-bold uppercase tracking-wide flex items-center justify-center gap-2 transition-all"
+                                    >
+                                        <Sparkles className="w-3 h-3" />
+                                        {structureApproved ? 'Gerar eBook' : 'Aprove no Chat'}
+                                    </button>
                                 </div>
                             ) : (
                                 <div className="h-full flex flex-col items-center justify-center text-center opacity-30">
                                     <FileText className="w-8 h-8 mb-2" />
-                                    <p className="text-xs">A estrutura aparecerá aqui</p>
+                                    <p className="text-xs">Estrutura pendente</p>
                                 </div>
                             )}
-                        </div>
-                        <div className="p-3 border-t border-white/5 bg-white/[0.02]">
-                            <button
-                                onClick={handleGenerate}
-                                disabled={!structureApproved || !detectedStructure}
-                                className="btn btn-primary w-full text-sm py-3 shadow-lg shadow-purple-900/20"
-                            >
-                                <Sparkles className="w-4 h-4" />
-                                GERAR AGORA
-                            </button>
                         </div>
                     </div>
                 </div>
 
             </main>
+
+            {/* FOOTER ASSINATURA */}
+            <footer className="app-footer">
+                By antigravitY - UM PRESENTE PRA MEU AMIGO QUE QUER VENCER NA VIDA COM IA
+            </footer>
         </div>
     )
 }
