@@ -216,7 +216,10 @@ Preço sugerido: ${template.precoSugerido}`
             {/* Header */}
             <header className="h-14 border-b border-white/10 flex items-center justify-between px-4">
                 <div className="flex items-center gap-3">
-                    {/* Logo removed for debugging */}
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center font-bold text-white text-xl">N</div>
+                        <span className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-white to-white/70">NEXUSBOOK</span>
+                    </div>
                 </div>
 
                 <button

@@ -417,9 +417,9 @@ body {
 }
 
 /* Responsive helpers */
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
   .dashboard-grid {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
   }
 }
 
