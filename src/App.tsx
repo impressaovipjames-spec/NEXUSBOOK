@@ -22,6 +22,7 @@ import { getColorThemeForTema } from './lib/coverGenerator'
 
 type AppState = 'briefing' | 'generating' | 'success'
 
+// NEXUSBOOK v3.1 - Build 20231207_2237 - Dashboard com Chat de Briefing
 export default function App() {
     // Estado da aplicação
     const [appState, setAppState] = useState<AppState>('briefing')
