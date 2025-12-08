@@ -4,7 +4,7 @@ import {
     Key, X, ChevronRight, FileText, ExternalLink,
     Loader2, CheckCircle2, MessageSquare, LayoutGrid
 } from 'lucide-react'
-import logo from './assets/nexus-logo.png'
+
 import {
     chatWithAI,
     getInitialBriefingMessage,
@@ -216,8 +216,7 @@ Preço sugerido: ${template.precoSugerido}`
             {/* Header */}
             <header className="h-14 border-b border-white/10 flex items-center justify-between px-4">
                 <div className="flex items-center gap-3">
-                    <img src={logo} alt="NEXUSBOOK" className="h-8" />
-                    <span className="font-bold text-lg">NEXUSBOOK</span>
+                    {/* Logo removed for debugging */}
                 </div>
 
                 <button
