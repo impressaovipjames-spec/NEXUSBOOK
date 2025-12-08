@@ -261,27 +261,93 @@ Preço sugerido: ${template.precoSugerido}`
 
     // UI Render
     return (
-        <div className="h-screen w-full flex flex-col bg-[#080812] text-white overflow-hidden font-sans">
+        <div className="h-screen w-full flex flex-col bg-[#0f1115] text-white overflow-hidden font-sans">
             <style>{`
-                /* Layout Defaults */
-                .dashboard-container { display: flex; height: calc(100vh - 64px - 30px); gap: 12px; padding: 12px; background: #080812; color: #e2e8f0; overflow: hidden; }
-                .panel { background: #12121f; border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; }
-                .panel-header { padding: 12px 16px; background: rgba(0, 0, 0, 0.2); border-bottom: 1px solid rgba(255, 255, 255, 0.05); font-weight: 600; font-size: 0.875rem; color: white; display: flex; items-center; gap: 8px; shrink: 0; }
-                .panel-content { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #4c1d95 #1e1e2e; }
-                
-                /* Webkit Scrollbar */
-                ::-webkit-scrollbar { width: 6px; height: 6px; }
-                ::-webkit-scrollbar-track { background: #1e1e2e; }
-                ::-webkit-scrollbar-thumb { background: #4c1d95; border-radius: 3px; }
-                ::-webkit-scrollbar-thumb:hover { background: #6d28d9; }
+                /* Layout Defaults & New Color Palette (Google AI Studio Inspired) */
+                :root {
+                    --bg-darker: #0f1115; /* Charcoal Black */
+                    --bg-dark: #181b21;   /* Dark Zinc */
+                    --bg-panel: #1e2229;  /* Panel Grey */
+                    --border-subtle: rgba(255, 255, 255, 0.08);
+                    --accent-primary: #3b82f6; /* Blue */
+                    --accent-secondary: #8b5cf6; /* Purple */
+                    --text-primary: #e2e8f0;
+                    --text-secondary: #94a3b8;
+                }
 
-                .template-btn-compact { width: 100%; text-align: left; padding: 10px; border-radius: 8px; border-left: 3px solid transparent; transition: all 0.2s; display: flex; items-center; gap: 10px; background: transparent; color: rgba(255, 255, 255, 0.6); }
-                .template-btn-compact:hover { background: rgba(255, 255, 255, 0.05); color: white; }
-                .template-btn-compact.selected { background: rgba(124, 58, 237, 0.1); border-left: 3px solid #7c3aed; }
+                .dashboard-container { display: flex; height: calc(100vh - 64px - 30px); gap: 16px; padding: 16px; background: var(--bg-darker); color: var(--text-primary); overflow: hidden; }
+                
+                .panel { 
+                    background: var(--bg-panel); 
+                    border: 1px solid var(--border-subtle); 
+                    border-radius: 16px; 
+                    display: flex; 
+                    flex-direction: column; 
+                    overflow: hidden; 
+                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                }
+
+                .panel-header { 
+                    padding: 14px 18px; 
+                    background: rgba(255, 255, 255, 0.02); 
+                    border-bottom: 1px solid var(--border-subtle); 
+                    font-weight: 600; 
+                    font-size: 0.875rem; 
+                    color: white; 
+                    display: flex; 
+                    items-center; 
+                    gap: 10px; 
+                    shrink: 0; 
+                    letter-spacing: 0.01em;
+                }
+
+                .panel-content { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #4b5563 #1f2937; }
+                
+                /* Styled Scrollbar */
+                ::-webkit-scrollbar { width: 6px; height: 6px; }
+                ::-webkit-scrollbar-track { background: transparent; }
+                ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+                ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+
+                /* NICHE CARDS */
+                .niche-card {
+                    padding: 12px;
+                    border-radius: 8px;
+                    border: 1px solid transparent;
+                    background: transparent;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    margin-bottom: 4px;
+                }
+                .niche-card:hover {
+                    background: rgba(255, 255, 255, 0.04);
+                    border-color: rgba(255, 255, 255, 0.1);
+                    transform: translateX(2px);
+                }
+
+                /* TEMPLATE CARDS */
+                .template-btn-compact { 
+                    width: 100%; 
+                    text-align: left; 
+                    padding: 12px; 
+                    border-bottom: 1px solid var(--border-subtle);
+                    transition: all 0.2s; 
+                    display: flex; 
+                    items-center; 
+                    gap: 12px; 
+                    background: transparent; 
+                    color: var(--text-secondary); 
+                }
+                .template-btn-compact:hover { background: rgba(59, 130, 246, 0.05); color: white; }
+                .template-btn-compact.selected { background: rgba(59, 130, 246, 0.1); border-left: 3px solid #3b82f6; }
+                .template-btn-compact:last-child { border-bottom: none; }
 
                 /* Chat */
-                .chat-area { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-                .chat-input-area { padding: 12px; background: rgba(0, 0, 0, 0.2); border-top: 1px solid rgba(255, 255, 255, 0.05); }
+                .chat-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; background: #13151a; }
+                .chat-input-area { padding: 16px; background: var(--bg-panel); border-top: 1px solid var(--border-subtle); }
+                
+                .chat-bubble-user { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border-radius: 12px 12px 2px 12px; padding: 12px 16px; }
+                .chat-bubble-ai { background: #27272a; border: 1px solid var(--border-subtle); color: #e2e8f0; border-radius: 12px 12px 12px 2px; padding: 12px 16px; }
 
                 /* Footer */
                 .app-footer {
@@ -290,34 +356,35 @@ Preço sugerido: ${template.precoSugerido}`
                     align-items: center;
                     justify-content: center;
                     font-size: 10px;
-                    color: rgba(255, 255, 255, 0.3);
-                    border-top: 1px solid rgba(255, 255, 255, 0.05);
-                    background: #080812;
+                    color: var(--text-secondary);
+                    border-top: 1px solid var(--border-subtle);
+                    background: var(--bg-darker);
                     letter-spacing: 1px;
+                    text-transform: uppercase;
                 }
             `}</style>
 
             {/* Header */}
-            <header className="h-16 border-b border-white/10 flex items-center justify-between px-6 bg-[#0f0f1a] shrink-0 z-10 box-border">
+            <header className="h-16 border-b border-white/5 flex items-center justify-between px-6 bg-[#0f1115] shrink-0 z-10 box-border">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center font-bold text-white text-xl">N</div>
-                    <span className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-white to-white/70">NEXUSBOOK</span>
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center font-bold text-white text-xl shadow-lg shadow-blue-500/20">N</div>
+                    <span className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">NEXUSBOOK</span>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                     <button
                         onClick={handleNewChat}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase tracking-wide transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold uppercase tracking-wide transition-all shadow-lg shadow-blue-900/20 hover:scale-105"
                     >
-                        <MessageSquare className="w-3 h-3" />
+                        <MessageSquare className="w-3.5 h-3.5" />
                         Nova Conversa
                     </button>
 
                     <button
                         onClick={() => setShowKeyModal(true)}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${apiKey ? 'border-green-500/30 text-green-400 bg-green-500/10' : 'border-white/10 text-white/60 hover:bg-white/5'}`}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-medium transition-colors ${apiKey ? 'border-green-500/20 text-green-400 bg-green-500/10' : 'border-white/10 text-gray-400 hover:bg-white/5 hover:text-white'}`}
                     >
-                        <Key className="w-3 h-3" />
+                        <Key className="w-3.5 h-3.5" />
                         {apiKey ? 'API Conectada' : 'Configurar API'}
                     </button>
                 </div>
@@ -371,14 +438,14 @@ Preço sugerido: ${template.precoSugerido}`
                             <Flame className="w-3 h-3 text-orange-400" />
                             Nichos em Alta
                         </div>
-                        <div className="panel-content overflow-y-auto p-2 space-y-1">
-                            {nichosQuentes.slice(0, 5).map((nicho) => (
-                                <div key={nicho.nome} onClick={() => handleSelectNicho(nicho.nome)} className="cursor-pointer p-2 rounded hover:bg-white/5 group">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className="text-xs font-medium text-white/80 group-hover:text-white truncate">{nicho.nome}</span>
-                                        <span className="text-[10px] text-orange-400">{nicho.temperatura}°</span>
+                        <div className="panel-content overflow-y-auto p-2">
+                            {nichosQuentes.map((nicho) => (
+                                <div key={nicho.nome} onClick={() => handleSelectNicho(nicho.nome)} className="niche-card group">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <span className="text-xs font-medium text-white/80 group-hover:text-white leading-relaxed">{nicho.nome}</span>
+                                        <span className="text-[10px] text-orange-400 font-mono bg-orange-400/10 px-1 rounded ml-2">{nicho.temperatura}°</span>
                                     </div>
-                                    <div className="h-0.5 bg-white/10 rounded-full overflow-hidden">
+                                    <div className="h-1 bg-white/5 rounded-full overflow-hidden">
                                         <div className="h-full bg-gradient-to-r from-orange-500 to-red-500" style={{ width: `${nicho.temperatura}%` }} />
                                     </div>
                                 </div>
@@ -427,8 +494,8 @@ Preço sugerido: ${template.precoSugerido}`
                             </div>
                         ) : (
                             messages.map((msg, i) => (
-                                <div key={i} className={`max-w-[85%] p-3 rounded-xl text-sm ${msg.role === 'user' ? 'bg-purple-600/20 border border-purple-500/30 self-end text-right' : 'bg-white/5 border border-white/10 self-start text-left'}`}>
-                                    {msg.content}
+                                <div key={i} className={`max-w-[85%] ${msg.role === 'user' ? 'self-end chat-bubble-user' : 'self-start chat-bubble-ai'}`}>
+                                    <div className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</div>
                                 </div>
                             ))
                         )}
