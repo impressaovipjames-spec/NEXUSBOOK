@@ -1,30 +1,67 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    Send, Flame, BookOpen, Sparkles,
+    Send, Flame, Sparkles,
     Key, X, FileText,
     Loader2, MessageSquare, LayoutGrid
 } from 'lucide-react';
+
+// Logic Imports
 import {
     chatWithAI,
     getInitialBriefingMessage,
     extractApprovedStructure,
     isStructureApproved,
-    generateEbookContent,
+    generateEbookContent
+} from './lib/gemini';
+
+// Type Imports
+import type {
     EbookStructure,
-    EbookTemplate,
     ChatMessage,
     MultiLanguageEbook
 } from './lib/gemini';
+
 import { nichosQuentes } from './lib/nichos';
 import { templates, getTemplateByNicho } from './lib/templates';
+import type { EbookTemplate } from './lib/templates'; // Import EbookTemplate as type
 import { createPDF } from './lib/pdf';
 import { getColorThemeForTema } from './lib/coverGenerator';
+
+// --- INTERFACES ---
+interface SidebarNichosProps {
+    onSelectNicho: (nicho: string) => void;
+    selectedTemplate: EbookTemplate | null;
+}
+
+interface RightPanelProps {
+    history: { id: string; title: string; date: string; messages: ChatMessage[] }[];
+    onLoadChat: (id: string) => void;
+    handleNewChat: () => void;
+    detectedStructure: EbookStructure | null;
+    structureApproved: boolean;
+    onGenerate: () => void;
+    isGenerating: boolean;
+    generationStatus: string;
+    generationProgress: number;
+    ebookData: MultiLanguageEbook | null;
+    onDownload: (lang: keyof MultiLanguageEbook) => void;
+}
+
+interface ChatAreaProps {
+    messages: ChatMessage[];
+    // Removed unused setMessages
+    onSendMessage: (text: string) => void;
+    isThinking: boolean;
+    chatEndRef: React.RefObject<HTMLDivElement | null>;
+    onConfigApi: () => void;
+    apiKey: string;
+}
 
 // =============================
 // COLUNA ESQUERDA — TERMÔMETRO & NICHOS
 // =============================
-const SidebarNichos = ({ onSelectNicho, selectedTemplate }) => {
+const SidebarNichos: React.FC<SidebarNichosProps> = ({ onSelectNicho, selectedTemplate }) => {
     return (
         <div className="h-full flex flex-col p-4 text-white bg-white/5 rounded-2xl shadow-xl border border-white/5 overflow-hidden">
             <h2 className="text-sm font-semibold mb-4 flex items-center gap-2 text-orange-400">
@@ -88,14 +125,18 @@ const SidebarNichos = ({ onSelectNicho, selectedTemplate }) => {
 // =============================
 // COLUNA DIREITA — HISTÓRICO & ESTRUTURA
 // =============================
-const RightPanel = ({
+const RightPanel: React.FC<RightPanelProps> = ({
     history,
     onLoadChat,
     handleNewChat,
     detectedStructure,
     structureApproved,
     onGenerate,
-    isGenerating
+    isGenerating,
+    generationStatus,
+    generationProgress,
+    ebookData,
+    onDownload
 }) => {
     return (
         <div className="h-full flex flex-col gap-4">
@@ -128,6 +169,37 @@ const RightPanel = ({
                                     ))}
                                 </div>
                             </div>
+
+                            {/* STATUS DE GERAÇÃO */}
+                            {isGenerating && (
+                                <div className="mt-4 p-3 bg-black/40 rounded-xl border border-white/10">
+                                    <div className="flex justify-between text-[10px] text-white/60 mb-1">
+                                        <span>{generationStatus}</span>
+                                        <span>{generationProgress}%</span>
+                                    </div>
+                                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                                        <motion.div
+                                            className="h-full bg-green-500"
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${generationProgress}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* DOWNLOADS */}
+                            {ebookData && (
+                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 space-y-2">
+                                    <div className="text-[10px] text-white/40 uppercase font-bold tracking-wider mb-2">Downloads Disponíveis</div>
+                                    <button onClick={() => onDownload('pt')} className="w-full py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded text-xs text-blue-300 flex items-center justify-center gap-2">
+                                        🇧🇷 Português
+                                    </button>
+                                    <button onClick={() => onDownload('en')} className="w-full py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded text-xs text-purple-300 flex items-center justify-center gap-2">
+                                        🇺🇸 English
+                                    </button>
+                                </motion.div>
+                            )}
+
                         </motion.div>
                     ) : (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-center opacity-30 p-4">
@@ -150,7 +222,7 @@ const RightPanel = ({
                             }`}
                     >
                         {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                        {structureApproved ? "Gerar eBook Completo" : "Aprovar Estrutura"}
+                        {structureApproved ? (isGenerating ? "Gerando..." : "Gerar eBook Completo") : "Aprovar Estrutura"}
                     </button>
                 </div>
             </div>
@@ -194,7 +266,7 @@ const RightPanel = ({
 // =============================
 // CHAT AREA (CENTRAL)
 // =============================
-const ChatArea = ({ messages, setMessages, onSendMessage, isThinking, chatEndRef, onConfigApi, apiKey }) => {
+const ChatArea: React.FC<ChatAreaProps> = ({ messages, onSendMessage, isThinking, chatEndRef, onConfigApi, apiKey }) => {
     const [input, setInput] = useState("");
 
     const handleSend = () => {
@@ -303,7 +375,14 @@ export default function App() {
     const [structureApproved, setStructureApproved] = useState(false);
     const [history, setHistory] = useState<{ id: string, title: string, date: string, messages: ChatMessage[] }[]>([]);
 
+    // Geração Reforçada
+    const [generationStatus, setGenerationStatus] = useState('');
+    const [generationProgress, setGenerationProgress] = useState(0);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [ebookData, setEbookData] = useState<MultiLanguageEbook | null>(null);
+
     // Refs
+    // Initialize with null but cast to match the expected non-null MutableRefObject if needed, or simply let it behave as RefObject
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     // Carregar dados iniciais
@@ -376,15 +455,49 @@ export default function App() {
 
         if (messages.length > 0) {
             handleSendMessage(`Quero criar um eBook sobre "${nichoNome}"`)
+            return // Add return to prevent double message or loop. The logic below startChat also calls handleSendMessage.
+            // Wait, if messages > 0, we just send message.
+            // Else we start chat AND send message.
         } else {
             startChat(template || undefined)
+            // Use timeout to let startChat state update finish
             setTimeout(() => handleSendMessage(`Quero criar um eBook sobre "${nichoNome}"`), 500)
         }
     }
 
     const handleGenerate = async () => {
-        alert("Iniciando geração completa do eBook... (Funcionalidade sendo conectada ao novo layout)");
-        // Lógica de geração completa seria chamada aqui
+        if (!detectedStructure || !apiKey) return
+
+        setIsGenerating(true)
+        setGenerationProgress(0)
+        setGenerationStatus('Iniciando geração...')
+
+        try {
+            const ebook = await generateEbookContent(
+                apiKey,
+                detectedStructure,
+                (status, progress) => {
+                    setGenerationStatus(status)
+                    setGenerationProgress(progress)
+                }
+            )
+
+            setEbookData(ebook)
+        } catch (error) {
+            console.error(error)
+            alert('Erro ao gerar eBook: ' + error)
+        } finally {
+            setIsGenerating(false)
+        }
+    }
+
+    const handleDownload = async (lang: keyof MultiLanguageEbook) => {
+        if (!ebookData) return
+
+        const colorTheme = getColorThemeForTema(detectedStructure?.titulo || '')
+        const doc = await createPDF(ebookData[lang], { colorTheme })
+        const filename = `${ebookData[lang].title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${lang}.pdf`
+        doc.save(filename)
     }
 
     const loadChat = (chatId: string) => {
@@ -397,6 +510,8 @@ export default function App() {
         setDetectedStructure(null)
         setStructureApproved(false)
         setSelectedTemplate(null)
+        setEbookData(null)
+        setIsGenerating(false)
         startChat()
     }
 
@@ -450,7 +565,7 @@ export default function App() {
                 <div className="col-span-6 h-full overflow-hidden">
                     <ChatArea
                         messages={messages}
-                        setMessages={setMessages}
+                        // Removed unused setMessages prop
                         onSendMessage={handleSendMessage}
                         isThinking={isThinking}
                         chatEndRef={chatEndRef}
@@ -468,7 +583,11 @@ export default function App() {
                         detectedStructure={detectedStructure}
                         structureApproved={structureApproved}
                         onGenerate={handleGenerate}
-                        isGenerating={false}
+                        isGenerating={isGenerating}
+                        generationStatus={generationStatus}
+                        generationProgress={generationProgress}
+                        ebookData={ebookData}
+                        onDownload={handleDownload}
                     />
                 </div>
             </main>
