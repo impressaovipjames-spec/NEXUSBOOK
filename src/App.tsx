@@ -646,13 +646,32 @@ export default function App() {
                                 className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-white text-sm focus:border-[#16E0C1] focus:outline-none mb-2 font-mono"
                             />
 
-                            {/* Aviso Amigável sobre Formatos */}
-                            {keyInput.length > 5 && !keyInput.trim().startsWith('AIza') && !keyInput.trim().startsWith('sk-') && (
-                                <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl mb-4 text-xs text-blue-300">
-                                    <span className="font-bold block mb-1">ℹ️ Formato diferente detectado (ex: GitHub)</span>
-                                    Isso parece ser uma chave pessoal. O sistema tentará usá-la com o Google Gemini por padrão.
+                            {/* Feedback Visual da Chave */}
+                            {keyInput.trim().startsWith('sk-') && (
+                                <div className="text-xs text-green-400 mb-4 flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-green-500"></span> OpenAI Detectado
                                 </div>
                             )}
+                            {keyInput.trim().startsWith('AIza') && (
+                                <div className="text-xs text-blue-400 mb-4 flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-blue-500"></span> Google Gemini Detectado
+                                </div>
+                            )}
+                            {keyInput.trim().startsWith('ghp_') && (
+                                <div className="text-xs text-purple-400 mb-4 flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-purple-500"></span> GitHub Models Detectado
+                                </div>
+                            )}
+
+                            {keyInput.length > 5 &&
+                                !keyInput.trim().startsWith('AIza') &&
+                                !keyInput.trim().startsWith('sk-') &&
+                                !keyInput.trim().startsWith('ghp_') && (
+                                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl mb-4 text-xs text-red-300">
+                                        <span className="font-bold block mb-1">⚠️ Formato Desconhecido</span>
+                                        O sistema tentará usar como Google Gemini, mas pode falhar.
+                                    </div>
+                                )}
 
                             <div className="text-[10px] text-white/30 mb-6 flex justify-between px-1">
                                 <span>Suporta: Google Gemini & OpenAI GPT-4</span>

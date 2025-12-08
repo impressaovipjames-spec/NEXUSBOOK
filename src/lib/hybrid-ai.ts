@@ -2,10 +2,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
 
-// --- ARQUIVOS COMPARTILHADOS ---
-// (Estou copiando as interfaces do arquivo gemini.ts para cá para centralizar,
-// mas por enquanto vou manter a compatibilidade importando de lá se precisar, 
-// ou melhor, redefinir aqui para ser o "hub" central).
+// --- INTERFACES ---
 
 export interface ChatMessage {
     role: 'user' | 'assistant';
@@ -48,7 +45,7 @@ export interface MultiLanguageEbook {
     fr: EbookContent;
 }
 
-// --- PROMPTS DO SISTEMA (COMPARTILHADOS) ---
+// --- PROMPTS DO SISTEMA ---
 const BRIEFING_SYSTEM_PROMPT = `Você é um consultor especialista em criação de eBooks de sucesso. Seu papel é ajudar o usuário a definir o melhor conteúdo para seu eBook através de perguntas estratégicas.
 
 REGRAS IMPORTANTES:
@@ -87,11 +84,11 @@ Agora vamos conversar! Quando o usuário iniciar, faça a primeira pergunta sobr
 // --- FUNÇÕES HELPER ---
 
 function detectProvider(apiKey: string): 'google' | 'openai' {
-    if (apiKey.startsWith('sk-')) return 'openai';
+    if (apiKey.startsWith('sk-') || apiKey.startsWith('ghp_')) return 'openai'; // Force OpenAI for ghp_ as requested by user intent (though technically wrong, we will try or fail inside)
     return 'google';
 }
 
-function getInitialBriefingMessage(templateContext?: string): ChatMessage {
+export function getInitialBriefingMessage(templateContext?: string): ChatMessage {
     let message = `Olá! 👋 Sou sua assistente de criação de eBooks.
 
 Vou te ajudar a criar um eBook profissional que vende! Vou fazer algumas perguntas para entender exatamente o que você precisa.`;
@@ -110,7 +107,7 @@ Pode ser qualquer coisa: saúde, finanças, relacionamentos, receitas, desenvolv
     };
 }
 
-function isStructureApproved(messages: ChatMessage[]): boolean {
+export function isStructureApproved(messages: ChatMessage[]): boolean {
     for (let i = messages.length - 1; i >= 0; i--) {
         if (messages[i].content.includes('---ESTRUTURA_APROVADA---')) {
             return true;
@@ -119,8 +116,7 @@ function isStructureApproved(messages: ChatMessage[]): boolean {
     return false;
 }
 
-function extractApprovedStructure(messages: ChatMessage[]): EbookStructure | null {
-    // Procurar pela última mensagem que contém a estrutura proposta
+export function extractApprovedStructure(messages: ChatMessage[]): EbookStructure | null {
     for (let i = messages.length - 1; i >= 0; i--) {
         const content = messages[i].content;
 
@@ -129,13 +125,11 @@ function extractApprovedStructure(messages: ChatMessage[]): EbookStructure | nul
             if (match) {
                 const estruturaText = match[1];
 
-                // Parse da estrutura
                 const tituloMatch = estruturaText.match(/TITULO:\s*(.+)/);
                 const subtituloMatch = estruturaText.match(/SUBTITULO:\s*(.+)/);
                 const publicoMatch = estruturaText.match(/PUBLICO:\s*(.+)/);
                 const tomMatch = estruturaText.match(/TOM:\s*(.+)/);
 
-                // Parse dos capítulos
                 const capitulosSection = estruturaText.match(/CAPITULOS:([\s\S]*?)(?=PUBLICO:|$)/);
                 const capitulos: string[] = [];
                 if (capitulosSection) {
@@ -162,29 +156,47 @@ function extractApprovedStructure(messages: ChatMessage[]): EbookStructure | nul
             }
         }
     }
-
     return null;
 }
 
-// --- FUNÇÕES PRINCIPAIS (HÍBRIDAS) ---
+// --- FUNÇÕES PRINCIPAIS ---
 
-async function chatWithAI(
+export async function chatWithAI(
     apiKey: string,
     messages: ChatMessage[],
-    templateContext?: string
+    templateContext?: string,
+    forcedProvider?: 'google' | 'openai'
 ): Promise<string> {
-    const provider = detectProvider(apiKey);
+    const provider = forcedProvider || detectProvider(apiKey);
     let systemPrompt = BRIEFING_SYSTEM_PROMPT;
     if (templateContext) {
         systemPrompt += `\n\nCONTEXTO DO TEMPLATE SELECIONADO:\n${templateContext}`;
     }
 
     if (provider === 'openai') {
-        const openai = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
+        // Handle custom endpoints or just standard OpenAI
+        // Note: ghp_ keys are for GitHub models but usually require a different base URL (https://models.inference.ai.azure.com)
+        // We will try standard OpenAI first, if it fails, and if key starts with ghp_, maybe we could try the other endpoint?
+        // For now, let's just assume standard OpenAI or user knows what they are doing.
+
+        let baseURL = undefined;
+        let modelName = "gpt-4-turbo-preview"; // Default OpenAI
+
+        if (apiKey.startsWith('ghp_')) {
+            // It's a GitHub Model key!
+            baseURL = "https://models.inference.ai.azure.com";
+            modelName = "gpt-4o"; // GitHub models often use this
+        }
+
+        const openai = new OpenAI({
+            apiKey,
+            baseURL,
+            dangerouslyAllowBrowser: true
+        });
 
         try {
             const completion = await openai.chat.completions.create({
-                model: "gpt-4-turbo-preview", // Ou gpt-3.5-turbo se preferir rapidez
+                model: modelName,
                 messages: [
                     { role: "system", content: systemPrompt },
                     ...messages.map(m => ({ role: m.role, content: m.content }))
@@ -192,18 +204,16 @@ async function chatWithAI(
             });
             return completion.choices[0].message.content || "Sem resposta.";
         } catch (error: any) {
-            console.error("OpenAI API Error:", error);
-            if (error.code === 'invalid_api_key') {
-                throw new Error('Chave API da OpenAI inválida.');
+            console.error("OpenAI/GitHub API Error:", error);
+            const msg = error.message || error.toString();
+            if (error.code === 'invalid_api_key' || error.status === 401) {
+                throw new Error(`Chave Inválida (${provider}). Verifique se está usando a chave correta.`);
             }
-            if (error.code === 'insufficient_quota') {
-                throw new Error('Créditos insuficientes na OpenAI.');
-            }
-            throw error;
+            throw new Error(`Erro na IA (${provider}): ${msg}`);
         }
 
     } else {
-        // GOOGLE GEMINI (Lógica original)
+        // GOOGLE GEMINI
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
@@ -227,21 +237,20 @@ async function chatWithAI(
         } catch (error: any) {
             console.error("Gemini API Error:", error);
             if (error.message?.includes('API key')) {
-                throw new Error('Chave de API do Google inválida.');
-            } else if (error.message?.includes('429')) {
-                throw new Error('Limite de requisições excedido no Google Gemini.');
+                throw new Error('Chave Google inválida. (Verifique AIza...)');
             }
-            throw error;
+            throw new Error(`Erro Google Gemini: ${error.message}`);
         }
     }
 }
 
-async function generateEbookContent(
+export async function generateEbookContent(
     apiKey: string,
     structure: EbookStructure,
-    onProgress?: (status: string, progress: number) => void
+    onProgress?: (status: string, progress: number) => void,
+    forcedProvider?: 'google' | 'openai'
 ): Promise<MultiLanguageEbook> {
-    const provider = detectProvider(apiKey);
+    const provider = forcedProvider || detectProvider(apiKey);
     const result: Partial<MultiLanguageEbook> = {};
     const languages = [
         { code: 'pt', name: 'Português Brasileiro' },
@@ -250,12 +259,17 @@ async function generateEbookContent(
         { code: 'fr', name: 'Français' }
     ];
 
-    // Instanciar clientes fora do loop
     let openai: OpenAI | null = null;
     let genAIModel: any = null;
+    let modelName = "gpt-4-turbo-preview";
 
     if (provider === 'openai') {
-        openai = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
+        let baseURL = undefined;
+        if (apiKey.startsWith('ghp_')) {
+            baseURL = "https://models.inference.ai.azure.com";
+            modelName = "gpt-4o";
+        }
+        openai = new OpenAI({ apiKey, baseURL, dangerouslyAllowBrowser: true });
     } else {
         const genAI = new GoogleGenerativeAI(apiKey);
         genAIModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
@@ -310,16 +324,16 @@ Responda APENAS com o JSON válido, sem explicações adicionais.`;
 
             if (provider === 'openai' && openai) {
                 const completion = await openai.chat.completions.create({
-                    model: "gpt-4-turbo-preview", // Melhor contexto para longos textos
+                    model: modelName,
                     messages: [{ role: "user", content: prompt }],
-                    response_format: { type: "json_object" } // Force JSON mode
+                    response_format: { type: "json_object" }
                 });
                 jsonText = completion.choices[0].message.content || "";
             } else if (genAIModel) {
                 const response = await genAIModel.generateContent(prompt);
                 const text = response.response.text();
-                // Limpeza básica
                 jsonText = text.trim();
+                // Strip markdown code blocks if present
                 if (jsonText.startsWith('```json')) {
                     jsonText = jsonText.replace(/^```json\n?/, '').replace(/\n?```$/, '');
                 } else if (jsonText.startsWith('```')) {
@@ -363,11 +377,3 @@ Responda APENAS com o JSON válido, sem explicações adicionais.`;
     onProgress?.('Concluído!', 100);
     return result as MultiLanguageEbook;
 }
-
-export {
-    chatWithAI,
-    getInitialBriefingMessage,
-    extractApprovedStructure,
-    isStructureApproved,
-    generateEbookContent
-};
