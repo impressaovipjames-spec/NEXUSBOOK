@@ -418,16 +418,19 @@ body {
 
 /* Responsive helpers */
 /* Dashboard Layout - Strict Mode */
+/* Responsive helpers */
+/* Dashboard Layout - Strict Mode */
 .dashboard-container {
   display: grid;
   grid-template-columns: 260px 1fr 300px;
-  /* Esquerda fixa, Meio flex, Direita fixa */
+  grid-template-rows: 1fr;
+  /* Add explicit row definition */
   gap: 12px;
-  height: calc(100vh - 64px);
-  /* Tira altura do header */
+  height: calc(100vh - 64px - 30px);
+  /* Subtract header and footer */
   padding: 12px;
   overflow: hidden;
-  /* Proíbe scroll na página toda */
+  /* Prevent body scroll */
 }
 
 /* Para telas menores que 1200px, diminui as laterais */
@@ -440,10 +443,18 @@ body {
 /* Se for MUITO pequeno (tablet/celular), aí sim vira coluna única */
 @media (max-width: 768px) {
   .dashboard-container {
-    grid-template-columns: 1fr;
-    overflow-y: auto;
-    /* Permite scroll no mobile */
+    display: flex;
+    /* Switch to flex column for mobile */
+    flex-direction: column;
     height: auto;
+    overflow-y: auto;
+    padding-bottom: 80px;
+    /* Space for mobile navigation if needed */
+  }
+
+  .panel {
+    min-height: 400px;
+    /* Ensure panels have height on mobile */
   }
 }
 

@@ -522,7 +522,7 @@ Preço sugerido: ${template.precoSugerido}`
 
             {/* FOOTER ASSINATURA */}
             <footer className="app-footer">
-                By antigravitY - UM PRESENTE PRA MEU AMIGO QUE QUER VENCER NA VIDA COM IA
+                By Antigravity - UM PRESENTE PRA MEU AMIGO QUE QUER VENCER NA VIDA COM IA
             </footer>
         </div>
     )

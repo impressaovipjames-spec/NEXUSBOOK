@@ -86,7 +86,7 @@ export async function chatWithAI(
     templateContext?: string
 ): Promise<string> {
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
 
     // Construir histórico de conversa
     const history = messages.map(msg => ({
@@ -100,18 +100,28 @@ export async function chatWithAI(
         systemPrompt += `\n\nCONTEXTO DO TEMPLATE SELECIONADO:\n${templateContext}`
     }
 
-    const chat = model.startChat({
-        history: [
-            { role: 'user', parts: [{ text: systemPrompt }] },
-            { role: 'model', parts: [{ text: 'Entendido! Estou pronto para ajudar a criar um eBook incrível. Vou fazer perguntas estratégicas para garantir que o conteúdo seja perfeito. Vamos começar! 📚' }] },
-            ...history.slice(0, -1) // Tudo exceto a última mensagem
-        ]
-    })
+    try {
+        const chat = model.startChat({
+            history: [
+                { role: 'user', parts: [{ text: systemPrompt }] },
+                { role: 'model', parts: [{ text: 'Entendido! Estou pronto para ajudar a criar um eBook incrível. Vou fazer perguntas estratégicas para garantir que o conteúdo seja perfeito. Vamos começar! 📚' }] },
+                ...history.slice(0, -1) // Tudo exceto a última mensagem
+            ]
+        })
 
-    const lastMessage = messages[messages.length - 1]
-    const result = await chat.sendMessage(lastMessage.content)
+        const lastMessage = messages[messages.length - 1]
+        const result = await chat.sendMessage(lastMessage.content)
 
-    return result.response.text()
+        return result.response.text()
+    } catch (error: any) {
+        console.error("Gemini API Error:", error)
+        if (error.message?.includes('API key')) {
+            throw new Error('Chave de API inválida ou incorreta.')
+        } else if (error.message?.includes('429')) {
+            throw new Error('Limite de requisições excedido. Tente novamente em alguns instantes.')
+        }
+        throw error
+    }
 }
 
 // Extrair estrutura aprovada da conversa
@@ -179,7 +189,7 @@ export async function generateEbookContent(
     onProgress?: (status: string, progress: number) => void
 ): Promise<MultiLanguageEbook> {
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
 
     const result: Partial<MultiLanguageEbook> = {}
     const languages = [
