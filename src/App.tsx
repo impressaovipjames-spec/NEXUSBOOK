@@ -275,7 +275,7 @@ Preço sugerido: ${template.precoSugerido}`
                     --text-secondary: #94a3b8;
                 }
 
-                .dashboard-container { display: flex; height: calc(100vh - 64px - 30px); gap: 16px; padding: 16px; background: var(--bg-darker); color: var(--text-primary); overflow: hidden; }
+                .dashboard-container { display: flex; height: calc(100vh - 64px - 30px); gap: 16px; padding: 16px; padding-top: 0; background: var(--bg-darker); color: var(--text-primary); overflow: hidden; }
                 
                 .panel { 
                     background: var(--bg-panel); 
