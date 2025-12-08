@@ -417,13 +417,84 @@ body {
 }
 
 /* Responsive helpers */
-@media (max-width: 768px) {
-  .dashboard-grid {
-    grid-template-columns: 1fr;
+/* Dashboard Layout - Strict Mode */
+.dashboard-container {
+  display: grid;
+  grid-template-columns: 260px 1fr 300px;
+  /* Esquerda fixa, Meio flex, Direita fixa */
+  gap: 12px;
+  height: calc(100vh - 64px);
+  /* Tira altura do header */
+  padding: 12px;
+  overflow: hidden;
+  /* Proíbe scroll na página toda */
+}
+
+/* Para telas menores que 1200px, diminui as laterais */
+@media (max-width: 1200px) {
+  .dashboard-container {
+    grid-template-columns: 220px 1fr 260px;
   }
 }
 
-/* Hide scrollbar but keep functionality */
+/* Se for MUITO pequeno (tablet/celular), aí sim vira coluna única */
+@media (max-width: 768px) {
+  .dashboard-container {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+    /* Permite scroll no mobile */
+    height: auto;
+  }
+}
+
+/* History Sidebar (Drawer) */
+.history-sidebar {
+  background: var(--nexus-dark);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+.history-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+.history-item.active {
+  background: rgba(124, 58, 237, 0.1);
+  color: var(--nexus-purple-light);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+}
+
+/* Ajustes finos nos painéis para caberem na altura */
+.panel {
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  /* Respeita o pai */
+}
+
+.panel-content {
+  overflow-y: auto;
+  /* Scroll SÓ aqui dentro */
+}
+
+/* Esconde scrollbar mas mantém funcional */
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;

@@ -211,10 +211,65 @@ Preço sugerido: ${template.precoSugerido}`
         fr: { flag: '🇫🇷', name: 'Français', platforms: ['Amazon KDP', 'Gumroad'] }
     }
 
+    // Histórico de Conversas
+    const [history, setHistory] = useState<{ id: string, title: string, date: string, messages: ChatMessage[] }[]>([])
+
+    // Carregar histórico
+    useEffect(() => {
+        const saved = localStorage.getItem('nexus_chat_history')
+        if (saved) {
+            setHistory(JSON.parse(saved))
+        }
+    }, [])
+
+    // Salvar no histórico
+    useEffect(() => {
+        if (messages.length > 0) {
+            const currentId = localStorage.getItem('current_chat_id') || Date.now().toString()
+            localStorage.setItem('current_chat_id', currentId)
+
+            const title = detectedStructure?.titulo || messages[0]?.content.slice(0, 30) || 'Novo eBook'
+
+            const newHistoryItem = {
+                id: currentId,
+                title: title,
+                date: new Date().toLocaleDateString(),
+                messages: messages
+            }
+
+            const otherHistory = history.filter(h => h.id !== currentId)
+            const newHistory = [newHistoryItem, ...otherHistory]
+
+            setHistory(newHistory)
+            localStorage.setItem('nexus_chat_history', JSON.stringify(newHistory))
+        }
+    }, [messages, detectedStructure])
+
+    // Carregar conversa do histórico
+    const loadChat = (chatId: string) => {
+        const chat = history.find(h => h.id === chatId)
+        if (chat) {
+            setMessages(chat.messages)
+            localStorage.setItem('current_chat_id', chat.id)
+            // Tentar recuperar estrutura também se possível (simplificado aqui)
+        }
+    }
+
+    // Novo Chat
+    const handleNewChat = () => {
+        setMessages([])
+        setDetectedStructure(null)
+        setStructureApproved(false)
+        setEbookData(null)
+        setSelectedTemplate(null)
+        localStorage.removeItem('current_chat_id')
+        startChat()
+    }
+
     return (
-        <div className="min-h-screen bg-[#080812]">
+        <div className="min-h-screen bg-[#080812] flex flex-col overflow-hidden">
             {/* Header */}
-            <header className="h-14 border-b border-white/10 flex items-center justify-between px-4">
+            <header className="h-16 border-b border-white/10 flex items-center justify-between px-6 bg-[#080812] shrink-0 z-10">
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center font-bold text-white text-xl">N</div>
@@ -222,21 +277,29 @@ Preço sugerido: ${template.precoSugerido}`
                     </div>
                 </div>
 
-                <button
-                    onClick={() => setShowKeyModal(true)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm transition-colors"
-                >
-                    <Key className="w-4 h-4" />
-                    <span className="hidden sm:inline">
-                        {apiKey ? 'API Key ✓' : 'Configurar API'}
-                    </span>
-                </button>
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={handleNewChat}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium transition-colors"
+                    >
+                        <MessageSquare className="w-4 h-4" />
+                        Nova Conversa
+                    </button>
+
+                    <button
+                        onClick={() => setShowKeyModal(true)}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm transition-colors text-white/70"
+                    >
+                        <Key className="w-4 h-4" />
+                        {apiKey ? 'API Conectada' : 'Configurar API'}
+                    </button>
+                </div>
             </header>
 
             {/* Modal de API Key */}
             {showKeyModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                    <div className="bg-[#12121f] border border-white/10 rounded-2xl p-6 max-w-md w-full">
+                    <div className="bg-[#12121f] border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-lg font-bold flex items-center gap-2">
                                 <Key className="w-5 h-5 text-yellow-400" />
@@ -278,15 +341,11 @@ Preço sugerido: ${template.precoSugerido}`
                                 Salvar
                             </button>
                         </div>
-
-                        <p className="text-xs text-white/40 mt-4 text-center">
-                            Sua chave fica salva apenas no seu navegador 🔒
-                        </p>
                     </div>
                 </div>
             )}
 
-            {/* FlipBook Viewer */}
+            {/* FlipBook Viewer Overlay */}
             {viewingLang && ebookData && (
                 <FlipBookViewer
                     ebook={ebookData[viewingLang]}
@@ -296,110 +355,91 @@ Preço sugerido: ${template.precoSugerido}`
                 />
             )}
 
-            {/* Main Content */}
-            <main className="h-[calc(100vh-56px)] p-3 overflow-hidden">
+            {/* Main Content - Dashboard Layout */}
+            <main className="dashboard-container">
 
-                {/* ESTADO: BRIEFING */}
-                {appState === 'briefing' && (
-                    <div className="h-full grid grid-cols-1 lg:grid-cols-3 gap-3 dashboard-grid">
+                {/* COLUNA ESQUERDA: Nichos + Templates */}
+                <div className="flex flex-col gap-3 overflow-hidden h-full">
 
-                        {/* Coluna Esquerda: Nichos e Templates */}
-                        <div className="flex flex-col gap-3 overflow-hidden">
-                            {/* Nichos Quentes */}
-                            <div className="panel flex-1 min-h-0 flex flex-col">
-                                <div className="panel-header">
-                                    <Flame className="w-4 h-4 text-orange-400" />
-                                    <span>Nichos Quentes</span>
-                                </div>
-                                <div className="panel-content flex-1 overflow-y-auto space-y-2">
-                                    {nichosQuentes.slice(0, 6).map((nicho) => (
-                                        <div
-                                            key={nicho.nome}
-                                            onClick={() => handleSelectNicho(nicho.nome)}
-                                            className="niche-card"
-                                        >
-                                            <div className="flex items-center justify-between mb-2">
-                                                <span className="text-sm font-medium">{nicho.nome}</span>
-                                                <span className="text-xs text-orange-400 font-bold">
-                                                    {nicho.temperatura}°
-                                                </span>
-                                            </div>
-                                            <div className="niche-temp-bar">
-                                                <div
-                                                    className="niche-temp-fill"
-                                                    style={{ width: `${nicho.temperatura}%` }}
-                                                />
-                                            </div>
-                                            <div className="text-xs text-white/40 mt-1">
-                                                {nicho.sugestaoPreco}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Templates */}
-                            <div className="panel">
-                                <div className="panel-header">
-                                    <LayoutGrid className="w-4 h-4 text-purple-400" />
-                                    <span>Templates</span>
-                                </div>
-                                <div className="panel-content grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                                    {templates.slice(0, 6).map((template) => (
-                                        <button
-                                            key={template.id}
-                                            onClick={() => startChat(template)}
-                                            className={`template-btn ${selectedTemplate?.id === template.id ? 'selected' : ''}`}
-                                        >
-                                            <span className="template-icon">{template.icone}</span>
-                                            <span className="text-xs">{template.nome.split(' ')[0]}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+                    {/* Nichos Quentes (Compacto) */}
+                    <div className="panel h-1/3 min-h-[200px] flex flex-col">
+                        <div className="panel-header">
+                            <Flame className="w-4 h-4 text-orange-400" />
+                            <span>Nichos em Alta</span>
                         </div>
+                        <div className="panel-content flex-1 overflow-y-auto space-y-2">
+                            {nichosQuentes.slice(0, 5).map((nicho) => (
+                                <div
+                                    key={nicho.nome}
+                                    onClick={() => handleSelectNicho(nicho.nome)}
+                                    className="niche-card py-2 px-3"
+                                >
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="text-xs font-medium truncate">{nicho.nome}</span>
+                                        <span className="text-[10px] text-orange-400 font-bold">{nicho.temperatura}°</span>
+                                    </div>
+                                    <div className="niche-temp-bar h-1">
+                                        <div className="niche-temp-fill" style={{ width: `${nicho.temperatura}%` }} />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
 
-                        {/* Coluna Central: Chat */}
-                        <div className="panel flex flex-col min-h-0 lg:col-span-1">
-                            <div className="panel-header">
+                    {/* Templates */}
+                    <div className="panel flex-1 flex flex-col">
+                        <div className="panel-header">
+                            <LayoutGrid className="w-4 h-4 text-purple-400" />
+                            <span>Templates</span>
+                        </div>
+                        <div className="panel-content flex-1 overflow-y-auto grid grid-cols-1 gap-2">
+                            {templates.map((template) => (
+                                <button
+                                    key={template.id}
+                                    onClick={() => startChat(template)}
+                                    className={`template-btn ${selectedTemplate?.id === template.id ? 'selected' : ''}`}
+                                >
+                                    <span className="template-icon text-lg">{template.icone}</span>
+                                    <div className="flex flex-col items-start gap-0.5 min-w-0">
+                                        <span className="text-xs font-medium truncate w-full">{template.nome}</span>
+                                        <span className="text-[10px] text-white/40">{template.publicoAlvo}</span>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* COLUNA CENTRAL: Chat (Ocupa tudo se estiver "briefing" ou "generating") */}
+                <div className="panel flex flex-col h-full overflow-hidden border-indigo-500/20 shadow-lg shadow-indigo-500/5">
+
+                    {appState === 'briefing' ? (
+                        <>
+                            <div className="panel-header bg-white/5">
                                 <MessageSquare className="w-4 h-4 text-cyan-400" />
-                                <span>Chat com IA</span>
+                                <span>Assistente Criativo</span>
                                 {isThinking && (
-                                    <Loader2 className="w-4 h-4 animate-spin ml-auto text-purple-400" />
+                                    <div className="flex items-center gap-2 ml-auto text-xs text-purple-300">
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                        Processando...
+                                    </div>
                                 )}
                             </div>
 
-                            <div className="chat-container flex-1 min-h-0">
-                                <div className="chat-messages">
+                            <div className="chat-container flex-1 min-h-0 relative">
+                                <div className="chat-messages p-4">
                                     {messages.length === 0 ? (
-                                        <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
-                                            <BookOpen className="w-12 h-12 text-white/20 mb-4" />
-                                            <h3 className="font-medium mb-2">Vamos criar seu eBook!</h3>
-                                            <p className="text-sm text-white/50 mb-4">
-                                                Selecione um nicho quente ou template para começar
+                                        <div className="flex-1 flex flex-col items-center justify-center text-center p-8 h-full opacity-50">
+                                            <BookOpen className="w-16 h-16 text-white/20 mb-4" />
+                                            <h3 className="font-medium text-lg mb-2">Editor Vazio</h3>
+                                            <p className="text-sm text-white/50 max-w-xs mx-auto">
+                                                Escolha um template ao lado ou digite abaixo para começar seu eBook.
                                             </p>
-                                            <button
-                                                onClick={() => startChat()}
-                                                className="btn btn-primary text-sm"
-                                                disabled={!apiKey}
-                                            >
-                                                <Sparkles className="w-4 h-4" />
-                                                Começar Conversa
-                                            </button>
-                                            {!apiKey && (
-                                                <p className="text-xs text-orange-400 mt-2">
-                                                    Configure sua API Key primeiro
-                                                </p>
-                                            )}
                                         </div>
                                     ) : (
                                         <>
                                             {messages.map((msg, i) => (
-                                                <div
-                                                    key={i}
-                                                    className={`chat-bubble ${msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'
-                                                        }`}
-                                                >
+                                                <div key={i} className={`chat-bubble ${msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'}`}>
                                                     <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
                                                 </div>
                                             ))}
@@ -407,7 +447,7 @@ Preço sugerido: ${template.precoSugerido}`
                                                 <div className="chat-bubble chat-bubble-ai">
                                                     <div className="flex items-center gap-2">
                                                         <Loader2 className="w-4 h-4 animate-spin" />
-                                                        <span className="text-sm">Pensando...</span>
+                                                        <span className="text-sm text-white/70">Escrevendo...</span>
                                                     </div>
                                                 </div>
                                             )}
@@ -416,272 +456,149 @@ Preço sugerido: ${template.precoSugerido}`
                                     )}
                                 </div>
 
-                                {messages.length > 0 && (
-                                    <div className="chat-input-container">
-                                        <input
-                                            type="text"
-                                            value={chatInput}
-                                            onChange={(e) => setChatInput(e.target.value)}
-                                            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                                            placeholder="Digite sua mensagem..."
-                                            className="chat-input"
-                                            disabled={isThinking}
-                                        />
-                                        <button
-                                            onClick={handleSendMessage}
-                                            disabled={!chatInput.trim() || isThinking}
-                                            className="btn btn-primary btn-icon"
-                                        >
-                                            <Send className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Coluna Direita: Estrutura + Ações */}
-                        <div className="flex flex-col gap-3 overflow-hidden">
-                            {/* Estrutura Detectada */}
-                            <div className="panel flex-1 min-h-0 flex flex-col">
-                                <div className="panel-header">
-                                    <FileText className="w-4 h-4 text-green-400" />
-                                    <span>Estrutura do eBook</span>
-                                </div>
-                                <div className="panel-content flex-1 overflow-y-auto">
-                                    {detectedStructure ? (
-                                        <div className="space-y-4">
-                                            <div>
-                                                <p className="text-xs text-white/50 mb-1">Título</p>
-                                                <p className="font-medium text-sm">{detectedStructure.titulo}</p>
-                                            </div>
-
-                                            {detectedStructure.subtitulo && (
-                                                <div>
-                                                    <p className="text-xs text-white/50 mb-1">Subtítulo</p>
-                                                    <p className="text-sm text-white/70">{detectedStructure.subtitulo}</p>
-                                                </div>
-                                            )}
-
-                                            <div>
-                                                <p className="text-xs text-white/50 mb-2">
-                                                    Capítulos ({detectedStructure.capitulos.length})
-                                                </p>
-                                                <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                                                    {detectedStructure.capitulos.map((cap, i) => (
-                                                        <div key={i} className="structure-item">
-                                                            <span className="structure-number">{i + 1}</span>
-                                                            <span className="text-xs truncate">{cap}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            {structureApproved && (
-                                                <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-                                                    <CheckCircle2 className="w-5 h-5 text-green-400" />
-                                                    <span className="text-sm text-green-400">Estrutura aprovada!</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center h-full text-center p-4 text-white/40">
-                                            <FileText className="w-10 h-10 mb-3 opacity-30" />
-                                            <p className="text-sm">
-                                                A estrutura do eBook aparecerá aqui quando a IA propor
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Botão de Gerar */}
-                            <div className="panel">
-                                <div className="panel-content">
+                                <div className="chat-input-container bg-[#0f0f1a] p-4 border-t border-white/5">
+                                    <input
+                                        type="text"
+                                        value={chatInput}
+                                        onChange={(e) => setChatInput(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                                        placeholder="Digite aqui (ex: 'Quero um ebook sobre dietas')..."
+                                        className="chat-input bg-[#1a1a2e]"
+                                        disabled={isThinking}
+                                    />
                                     <button
-                                        onClick={handleGenerate}
-                                        disabled={!structureApproved || !detectedStructure}
-                                        className="btn btn-primary w-full text-lg py-4"
+                                        onClick={handleSendMessage}
+                                        disabled={!chatInput.trim() || isThinking}
+                                        className="btn btn-primary btn-icon shrink-0"
                                     >
-                                        <Sparkles className="w-5 h-5" />
-                                        GERAR EBOOK
-                                        <ChevronRight className="w-5 h-5" />
+                                        <Send className="w-5 h-5" />
                                     </button>
-
-                                    {!structureApproved && detectedStructure && (
-                                        <p className="text-xs text-center text-orange-400 mt-2">
-                                            Aprove a estrutura no chat para continuar
-                                        </p>
-                                    )}
-
-                                    {!detectedStructure && messages.length > 0 && (
-                                        <p className="text-xs text-center text-white/40 mt-2">
-                                            Continue a conversa até a IA propor a estrutura
-                                        </p>
-                                    )}
                                 </div>
                             </div>
-                        </div>
-
-                    </div>
-                )}
-
-                {/* ESTADO: GERANDO */}
-                {appState === 'generating' && (
-                    <div className="h-full flex items-center justify-center">
-                        <div className="generation-status max-w-md w-full">
-                            <div className="generation-spinner" />
-
-                            <h2 className="text-2xl font-bold mb-2">
-                                Gerando seu eBook...
+                        </>
+                    ) : appState === 'generating' ? (
+                        <div className="h-full flex flex-col items-center justify-center p-8 text-center">
+                            <div className="generation-spinner w-20 h-20 mb-6" />
+                            <h2 className="text-2xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
+                                Materializando seu eBook...
                             </h2>
-
-                            <p className="text-white/60 mb-6">
-                                {generationStatus}
+                            <p className="text-white/60 mb-8 max-w-md mx-auto">{generationStatus}</p>
+                            <div className="w-full max-w-md bg-white/5 rounded-full h-2 mb-2 overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-purple-500 to-cyan-500 transition-all duration-300" style={{ width: `${generationProgress}%` }} />
+                            </div>
+                            <p className="text-xs text-white/30">{generationProgress}% Concluído</p>
+                        </div>
+                    ) : (
+                        <div className="h-full flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
+                            <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mb-6 ring-4 ring-green-500/10">
+                                <CheckCircle2 className="w-10 h-10 text-green-400" />
+                            </div>
+                            <h2 className="text-3xl font-bold mb-4">Pronto!</h2>
+                            <p className="text-white/60 mb-8 max-w-lg mx-auto">
+                                Seu eBook <strong>"{detectedStructure?.titulo}"</strong> foi criado com sucesso em 4 idiomas.
                             </p>
 
-                            <div className="progress-bar w-full max-w-xs mx-auto mb-4">
-                                <div
-                                    className="progress-fill"
-                                    style={{ width: `${generationProgress}%` }}
-                                />
+                            <div className="grid grid-cols-2 gap-4 w-full max-w-2xl">
+                                {(['pt', 'en', 'es', 'fr'] as const).map(lang => (
+                                    <div key={lang} className="bg-white/5 p-4 rounded-xl border border-white/10 hover:border-purple-500/50 transition-colors flex items-center justify-between group">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-2xl">{platformsInfo[lang].flag}</span>
+                                            <span className="font-medium text-sm">{platformsInfo[lang].name}</span>
+                                        </div>
+                                        <div className="flex gap-2 opacity-100 sm:opacity-50 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => setViewingLang(lang)} className="p-2 hover:bg-white/10 rounded-lg text-white/80"><Eye className="w-4 h-4" /></button>
+                                            <button onClick={() => handleDownload(lang)} className="p-2 hover:bg-green-500/20 rounded-lg text-green-400"><Download className="w-4 h-4" /></button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
 
-                            <p className="text-sm text-white/40">
-                                Criando conteúdo em 4 idiomas...
-                            </p>
+                            <button onClick={handleReset} className="mt-8 text-sm text-white/40 hover:text-white transition-colors flex items-center gap-2">
+                                <Sparkles className="w-4 h-4" /> Criar novo eBook
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* COLUNA DIREITA: Histórico + Estrutura */}
+                <div className="flex flex-col gap-3 overflow-hidden h-full">
+
+                    {/* Histórico Recente */}
+                    <div className="panel h-1/3 min-h-[200px] flex flex-col">
+                        <div className="panel-header">
+                            <MessageSquare className="w-4 h-4 text-blue-400" />
+                            <span>Histórico</span>
+                        </div>
+                        <div className="panel-content flex-1 overflow-y-auto space-y-1">
+                            {history.length === 0 ? (
+                                <p className="text-xs text-white/30 text-center py-4">Nenhuma conversa salva</p>
+                            ) : (
+                                history.map(chat => (
+                                    <div
+                                        key={chat.id}
+                                        onClick={() => loadChat(chat.id)}
+                                        className="text-xs p-2 rounded-lg hover:bg-white/5 cursor-pointer flex flex-col gap-0.5 border border-transparent hover:border-white/10"
+                                    >
+                                        <span className="font-medium truncate text-white/80">{chat.title}</span>
+                                        <span className="text-[10px] text-white/30">{chat.date}</span>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
-                )}
 
-                {/* ESTADO: SUCESSO */}
-                {appState === 'success' && ebookData && (
-                    <div className="h-full overflow-y-auto">
-                        <div className="max-w-4xl mx-auto py-8">
-                            {/* Header de Sucesso */}
-                            <div className="text-center mb-8">
-                                <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <CheckCircle2 className="w-8 h-8 text-white" />
-                                </div>
-                                <h1 className="text-3xl font-bold mb-2">eBook Criado com Sucesso!</h1>
-                                <p className="text-white/60">
-                                    Seu eBook está pronto em 4 idiomas. Baixe e comece a vender!
-                                </p>
-                            </div>
+                    {/* Estrutura */}
+                    <div className="panel flex-1 flex flex-col">
+                        <div className="panel-header">
+                            <FileText className="w-4 h-4 text-green-400" />
+                            <span>Estrutura</span>
+                        </div>
+                        <div className="panel-content flex-1 overflow-y-auto p-4">
+                            {detectedStructure ? (
+                                <div className="space-y-4 animate-in slide-in-from-right duration-300">
+                                    <div>
+                                        <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Título</p>
+                                        <p className="font-bold text-sm leading-tight text-white/90">{detectedStructure.titulo}</p>
+                                    </div>
 
-                            {/* Grid de Idiomas */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                                {(['pt', 'en', 'es', 'fr'] as const).map((lang) => {
-                                    const info = platformsInfo[lang]
-                                    return (
-                                        <div key={lang} className="lang-card">
-                                            <div className="flex items-center gap-3 mb-4">
-                                                <span className="text-3xl">{info.flag}</span>
-                                                <div>
-                                                    <h3 className="font-bold">{info.name}</h3>
-                                                    <p className="text-xs text-white/50">
-                                                        {ebookData[lang].metadata.pageCount} páginas
-                                                    </p>
+                                    <div>
+                                        <p className="text-[10px] uppercase tracking-wider text-white/40 mb-2">Capítulos</p>
+                                        <div className="space-y-2">
+                                            {detectedStructure.capitulos.map((cap, i) => (
+                                                <div key={i} className="flex gap-2 text-xs">
+                                                    <span className="font-mono text-purple-400/80">{(i + 1).toString().padStart(2, '0')}</span>
+                                                    <span className="text-white/70 line-clamp-2">{cap}</span>
                                                 </div>
-                                            </div>
-
-                                            <div className="text-xs text-white/50 mb-4">
-                                                <p className="mb-1">Venda em:</p>
-                                                <p className="text-white/70">{info.platforms.join(' • ')}</p>
-                                            </div>
-
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={() => setViewingLang(lang)}
-                                                    className="btn btn-secondary flex-1 text-sm"
-                                                >
-                                                    <Eye className="w-4 h-4" />
-                                                    Ver
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDownload(lang)}
-                                                    className="btn btn-success flex-1 text-sm"
-                                                >
-                                                    <Download className="w-4 h-4" />
-                                                    Baixar
-                                                </button>
-                                            </div>
+                                            ))}
                                         </div>
-                                    )
-                                })}
-                            </div>
+                                    </div>
 
-                            {/* Guia de Venda */}
-                            <div className="panel mb-6">
-                                <div className="panel-header">
-                                    <ExternalLink className="w-4 h-4 text-green-400" />
-                                    <span>Próximos Passos - Comece a Vender</span>
+                                    {structureApproved && (
+                                        <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-2">
+                                            <CheckCircle2 className="w-4 h-4 text-green-400" />
+                                            <span className="text-xs text-green-400 font-medium">Aprovado para geração</span>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="panel-content space-y-3">
-                                    <div className="guide-step">
-                                        <span className="guide-step-number">1</span>
-                                        <div>
-                                            <p className="font-medium text-sm">Baixe os PDFs</p>
-                                            <p className="text-xs text-white/50">
-                                                Baixe todos os idiomas que deseja vender
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="guide-step">
-                                        <span className="guide-step-number">2</span>
-                                        <div>
-                                            <p className="font-medium text-sm">Crie conta na plataforma</p>
-                                            <p className="text-xs text-white/50">
-                                                Hotmart, Amazon KDP ou Eduzz (gratuito)
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="guide-step">
-                                        <span className="guide-step-number">3</span>
-                                        <div>
-                                            <p className="font-medium text-sm">Cadastre seu produto</p>
-                                            <p className="text-xs text-white/50">
-                                                Faça upload do PDF e defina o preço
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="guide-step">
-                                        <span className="guide-step-number">4</span>
-                                        <div>
-                                            <p className="font-medium text-sm">Publique e divulgue</p>
-                                            <p className="text-xs text-white/50">
-                                                Compartilhe nas redes sociais e comece a vender!
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Preço Sugerido */}
-                            {selectedTemplate && (
-                                <div className="text-center p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl mb-6">
-                                    <p className="text-sm text-white/60 mb-1">Preço sugerido para este nicho:</p>
-                                    <p className="text-2xl font-bold text-purple-400">
-                                        {selectedTemplate.precoSugerido}
-                                    </p>
+                            ) : (
+                                <div className="h-full flex flex-col items-center justify-center text-center opacity-30">
+                                    <FileText className="w-8 h-8 mb-2" />
+                                    <p className="text-xs">A estrutura aparecerá aqui</p>
                                 </div>
                             )}
-
-                            {/* Botão de Criar Outro */}
-                            <div className="text-center">
-                                <button
-                                    onClick={handleReset}
-                                    className="btn btn-primary"
-                                >
-                                    <Sparkles className="w-5 h-5" />
-                                    Criar Outro eBook
-                                </button>
-                            </div>
+                        </div>
+                        <div className="p-3 border-t border-white/5 bg-white/[0.02]">
+                            <button
+                                onClick={handleGenerate}
+                                disabled={!structureApproved || !detectedStructure}
+                                className="btn btn-primary w-full text-sm py-3 shadow-lg shadow-purple-900/20"
+                            >
+                                <Sparkles className="w-4 h-4" />
+                                GERAR AGORA
+                            </button>
                         </div>
                     </div>
-                )}
+                </div>
 
             </main>
         </div>
