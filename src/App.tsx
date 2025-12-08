@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
     Send, Flame, BookOpen, Sparkles, Download, Eye,
-    Key, X, ChevronRight, FileText, ExternalLink,
+    Key, X, FileText,
     Loader2, CheckCircle2, MessageSquare, LayoutGrid
 } from 'lucide-react'
 
