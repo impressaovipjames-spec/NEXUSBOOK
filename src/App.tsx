@@ -13,18 +13,18 @@ import {
     extractApprovedStructure,
     isStructureApproved,
     generateEbookContent
-} from './lib/hybrid-ai';
+} from './lib/gemini';
 
 // Type Imports
 import type {
     EbookStructure,
     ChatMessage,
     MultiLanguageEbook
-} from './lib/hybrid-ai';
+} from './lib/gemini';
 
 import { nichosQuentes } from './lib/nichos';
 import { templates, getTemplateByNicho } from './lib/templates';
-import type { EbookTemplate } from './lib/templates';
+import type { EbookTemplate } from './lib/templates'; // Import EbookTemplate as type
 import { createPDF } from './lib/pdf';
 import { getColorThemeForTema } from './lib/coverGenerator';
 
@@ -50,6 +50,7 @@ interface RightPanelProps {
 
 interface ChatAreaProps {
     messages: ChatMessage[];
+    // Removed unused setMessages
     onSendMessage: (text: string) => void;
     isThinking: boolean;
     chatEndRef: React.RefObject<HTMLDivElement | null>;
@@ -69,33 +70,34 @@ const SidebarNichos: React.FC<SidebarNichosProps> = ({ onSelectNicho, selectedTe
             </h2>
 
             {/* Termômetro Visual com Labels */}
-            <div className="flex gap-2 items-end justify-between h-[220px] px-2 mb-4">
-                {nichosQuentes.slice(0, 5).map((n, i) => (
+            <div className="flex gap-1 items-end justify-between h-[180px] px-1 mb-8">
+                {nichosQuentes.slice(0, 6).map((n, i) => (
                     <div key={i} className="flex flex-col items-center h-full justify-end w-full group cursor-pointer" onClick={() => onSelectNicho(n.nome)}>
 
                         {/* Bar Container */}
-                        <div className="w-full relative flex-1 flex items-end justify-center px-1 pb-2">
+                        <div className="w-full relative flex-1 flex items-end px-1">
                             <motion.div
                                 initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: `${(n.temperatura / 100) * 100}%` }}
+                                animate={{ opacity: 1, height: `${(n.temperatura / 100) * 80}%` }} // Max 80% height
                                 transition={{ duration: 0.6, delay: i * 0.1 }}
-                                className="w-full max-w-[24px] rounded-t-sm shadow-lg group-hover:brightness-125 transition-all opacity-90 group-hover:opacity-100"
+                                className="w-full rounded-t-sm shadow-lg group-hover:brightness-125 transition-all opacity-80 group-hover:opacity-100"
                                 style={{
                                     background: "linear-gradient(to top, #F7D44C, #FF9A32, #FF4A24)",
-                                    minHeight: '10px'
+                                    minHeight: '4px'
                                 }}
                             >
-                                {/* Temperatura no Topo */}
-                                <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-bold text-orange-300 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    {n.temperatura}°
+                                {/* Hover Tooltip (Detalhado) */}
+                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/90 text-[10px] px-2 py-1 rounded-md border border-white/10 whitespace-nowrap z-20 pointer-events-none">
+                                    <div className="font-bold text-orange-400">{n.nome}</div>
+                                    <div className="text-white/60">{n.temperatura}° Temperatura</div>
                                 </div>
                             </motion.div>
                         </div>
 
-                        {/* Label Abaixo da Barra (Área Escura) */}
-                        <div className="h-[100px] w-full flex items-start justify-center pt-2 border-t border-white/5 relative">
-                            <span className="text-[10px] font-medium text-white/70 group-hover:text-white transition-colors rotate-[-45deg] whitespace-nowrap origin-top-left translate-x-3 translate-y-1 w-[100px]">
-                                {n.nome}
+                        {/* Label Abaixo da Barra */}
+                        <div className="h-16 w-full flex items-start justify-center pt-2 border-t border-white/5">
+                            <span className="text-[9px] text-white/50 group-hover:text-white transition-colors rotate-[-90deg] whitespace-nowrap origin-top w-[80px] mt-1 text-right">
+                                {n.nome.length > 15 ? n.nome.substring(0, 15) + '...' : n.nome}
                             </span>
                         </div>
                     </div>
@@ -110,10 +112,10 @@ const SidebarNichos: React.FC<SidebarNichosProps> = ({ onSelectNicho, selectedTe
                 {templates.map((t) => (
                     <button
                         key={t.id}
-                        onClick={() => onSelectNicho(t.nome.split(' ')[0])}
+                        onClick={() => onSelectNicho(t.nome.split(' ')[0])} // Simplificação para demo
                         className={`w-full text-left p-3 rounded-xl border transition-all text-xs group ${selectedTemplate?.id === t.id
-                            ? "bg-purple-500/20 border-purple-500/50 text-white"
-                            : "bg-white/5 border-transparent hover:bg-white/10 text-white/70"
+                                ? "bg-purple-500/20 border-purple-500/50 text-white"
+                                : "bg-white/5 border-transparent hover:bg-white/10 text-white/70"
                             }`}
                     >
                         <div className="font-medium group-hover:text-white mb-0.5 flex items-center gap-2">
@@ -224,8 +226,8 @@ const RightPanel: React.FC<RightPanelProps> = ({
                         onClick={onGenerate}
                         disabled={!structureApproved || isGenerating}
                         className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${structureApproved
-                            ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:scale-[1.02] text-white shadow-lg shadow-green-900/20"
-                            : "bg-white/5 text-white/30 cursor-not-allowed"
+                                ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:scale-[1.02] text-white shadow-lg shadow-green-900/20"
+                                : "bg-white/5 text-white/30 cursor-not-allowed"
                             }`}
                     >
                         {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
@@ -322,8 +324,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, onSendMessage, isThinking
                         >
                             <div
                                 className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed shadow-lg ${msg.role === 'user'
-                                    ? "bg-[#7C3AED] text-white rounded-br-none"
-                                    : "bg-[#1e2029] text-gray-100 border border-white/5 rounded-bl-none"
+                                        ? "bg-[#7C3AED] text-white rounded-br-none"
+                                        : "bg-[#1e2029] text-gray-100 border border-white/5 rounded-bl-none"
                                     }`}
                             >
                                 <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -370,306 +372,270 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, onSendMessage, isThinking
 // =============================
 // DASHBOARD PRINCIPAL (SOLARIS)
 // =============================
-const [generationProgress, setGenerationProgress] = useState(0);
-const [isGenerating, setIsGenerating] = useState(false);
-const [ebookData, setEbookData] = useState<MultiLanguageEbook | null>(null);
-const chatEndRef = useRef<HTMLDivElement>(null);
+export default function App() {
+    // --- ESTADOS GLOBAIS (Mantendo lógica original) ---
+    const [apiKey, setApiKey] = useState("");
+    const [showKeyModal, setShowKeyModal] = useState(false);
+    const [keyInput, setKeyInput] = useState("");
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [isThinking, setIsThinking] = useState(false);
+    const [selectedTemplate, setSelectedTemplate] = useState<EbookTemplate | null>(null);
+    const [detectedStructure, setDetectedStructure] = useState<EbookStructure | null>(null);
+    const [structureApproved, setStructureApproved] = useState(false);
+    const [history, setHistory] = useState<{ id: string, title: string, date: string, messages: ChatMessage[] }[]>([]);
 
+    // Geração Reforçada
+    const [generationStatus, setGenerationStatus] = useState('');
+    const [generationProgress, setGenerationProgress] = useState(0);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [ebookData, setEbookData] = useState<MultiLanguageEbook | null>(null);
 
-useEffect(() => {
-    const storedKey = localStorage.getItem('gemini_api_key');
-    if (storedKey) setApiKey(storedKey);
-}, []);
+    // Refs
+    // Initialize with null but cast to match the expected non-null MutableRefObject if needed, or simply let it behave as RefObject
+    const chatEndRef = useRef<HTMLDivElement>(null);
 
-// Scroll Chat
-useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-}, [messages, isThinking]);
+    // Carregar dados iniciais
+    useEffect(() => {
+        const storedKey = localStorage.getItem('gemini_api_key');
+        if (storedKey) setApiKey(storedKey);
 
-// Detectar estrutura
-useEffect(() => {
-    const structure = extractApprovedStructure(messages);
-    if (structure) setDetectedStructure(structure);
-    setStructureApproved(isStructureApproved(messages));
-}, [messages]);
+        const savedHistory = localStorage.getItem('nexus_chat_history');
+        if (savedHistory) setHistory(JSON.parse(savedHistory));
+    }, []);
 
-// Salvar Histórico automaticamente quando a estrutura é aprovada
-useEffect(() => {
-    if (structureApproved && detectedStructure) {
-        setHistory(prev => {
-            // Evitar duplicação simples pelo título
-            if (prev.some(h => h.title === detectedStructure.titulo)) return prev;
+    // Scroll Chat
+    useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages, isThinking]);
 
-            const newHistory = [
-                {
-                    id: crypto.randomUUID(),
-                    title: detectedStructure.titulo,
-                    date: new Date().toLocaleDateString('pt-BR'),
-                    messages
-                },
-                ...prev
-            ];
-            localStorage.setItem('nexus_chat_history', JSON.stringify(newHistory));
-            return newHistory;
-        });
-    }
-}, [structureApproved, detectedStructure]);
+    // Detectar estrutura
+    useEffect(() => {
+        const structure = extractApprovedStructure(messages);
+        if (structure) setDetectedStructure(structure);
+        setStructureApproved(isStructureApproved(messages));
+    }, [messages]);
 
+    // --- LÓGICA DE NEGÓCIO ---
 
-const handleSaveKey = () => {
-    if (keyInput.trim()) {
-        setApiKey(keyInput.trim())
-        localStorage.setItem('gemini_api_key', keyInput.trim())
-        setShowKeyModal(false)
-        setKeyInput('')
-    }
-}
-
-const startChat = (template?: EbookTemplate) => {
-    if (!apiKey) {
-        setShowKeyModal(true)
-        return
+    const handleSaveKey = () => {
+        if (keyInput.trim()) {
+            setApiKey(keyInput.trim())
+            localStorage.setItem('gemini_api_key', keyInput.trim())
+            setShowKeyModal(false)
+            setKeyInput('')
+        }
     }
 
-    let templateContext = ''
-    if (template) {
-        setSelectedTemplate(template)
-        templateContext = `O usuário selecionou o template "${template.nome}". \nEstrutura sugerida: ${template.estruturaSugerida.slice(0, 3).join(', ')}...`
+    const startChat = (template?: EbookTemplate) => {
+        if (!apiKey) {
+            setShowKeyModal(true)
+            return
+        }
+
+        let templateContext = ''
+        if (template) {
+            setSelectedTemplate(template)
+            templateContext = `O usuário selecionou o template "${template.nome}". \nEstrutura sugerida: ${template.estruturaSugerida.slice(0, 3).join(', ')}...`
+        }
+
+        const initialMessage = getInitialBriefingMessage(templateContext)
+        setMessages([initialMessage])
     }
 
-    const initialMessage = getInitialBriefingMessage(templateContext)
-    setMessages([initialMessage])
-}
+    const handleSendMessage = async (text: string) => {
+        const userMessage: ChatMessage = { role: 'user', content: text }
+        const newMessages = [...messages, userMessage]
+        setMessages(newMessages)
+        setIsThinking(true)
 
-
-const handleSendMessage = async (text: string) => {
-    const userMessage: ChatMessage = { role: 'user', content: text }
-    const newMessages = [...messages, userMessage]
-    setMessages(newMessages)
-    setIsThinking(true)
-
-    try {
-        const response = await chatWithAI(apiKey, newMessages, selectedTemplate?.nome ? `Template: ${selectedTemplate.nome}` : undefined)
-        setMessages([...newMessages, { role: 'assistant', content: response }])
-    } catch (error: any) {
-        console.error(error);
-        const errorMessage = error.message || "Erro desconhecido na API.";
-        setMessages(prev => [...prev, { role: 'assistant', content: `❌ ${errorMessage}` }]);
-    } finally {
-        setIsThinking(false)
+        try {
+            const response = await chatWithAI(apiKey, newMessages, selectedTemplate?.nome ? `Template: ${selectedTemplate.nome}` : undefined)
+            setMessages([...newMessages, { role: 'assistant', content: response }])
+        } catch (error: any) {
+            console.error(error);
+            const errorMessage = error.message || "Erro desconhecido na API.";
+            setMessages(prev => [...prev, { role: 'assistant', content: `❌ ${errorMessage}` }]);
+        } finally {
+            setIsThinking(false)
+        }
     }
-}
 
-// ... (rest of handlers unchanged)
-const handleSelectNicho = (nichoNome: string) => {
-    const template = getTemplateByNicho(nichoNome)
-    if (template) setSelectedTemplate(template)
+    const handleSelectNicho = (nichoNome: string) => {
+        const template = getTemplateByNicho(nichoNome)
+        if (template) setSelectedTemplate(template)
 
-    if (messages.length > 0) {
-        handleSendMessage(`Quero criar um eBook sobre "${nichoNome}"`)
-        return
-    } else {
-        startChat(template || undefined)
-        setTimeout(() => handleSendMessage(`Quero criar um eBook sobre "${nichoNome}"`), 500)
+        if (messages.length > 0) {
+            handleSendMessage(`Quero criar um eBook sobre "${nichoNome}"`)
+            return
+        } else {
+            startChat(template || undefined)
+            setTimeout(() => handleSendMessage(`Quero criar um eBook sobre "${nichoNome}"`), 500)
+        }
     }
-}
 
-const handleGenerate = async () => {
-    if (!detectedStructure || !apiKey) return
+    const handleGenerate = async () => {
+        if (!detectedStructure || !apiKey) return
 
-    setIsGenerating(true)
-    setGenerationProgress(0)
-    setGenerationStatus('Iniciando geração...')
+        setIsGenerating(true)
+        setGenerationProgress(0)
+        setGenerationStatus('Iniciando geração...')
 
-    try {
-        const ebook = await generateEbookContent(
-            apiKey,
-            detectedStructure,
-            (status, progress) => {
-                setGenerationStatus(status)
-                setGenerationProgress(progress)
-            }
-        )
+        try {
+            const ebook = await generateEbookContent(
+                apiKey,
+                detectedStructure,
+                (status, progress) => {
+                    setGenerationStatus(status)
+                    setGenerationProgress(progress)
+                }
+            )
 
-        setEbookData(ebook)
-    } catch (error) {
-        console.error(error)
-        alert('Erro ao gerar eBook: ' + error)
-    } finally {
+            setEbookData(ebook)
+        } catch (error) {
+            console.error(error)
+            alert('Erro ao gerar eBook: ' + error)
+        } finally {
+            setIsGenerating(false)
+        }
+    }
+
+    const handleDownload = async (lang: keyof MultiLanguageEbook) => {
+        if (!ebookData) return
+
+        const colorTheme = getColorThemeForTema(detectedStructure?.titulo || '')
+        const doc = await createPDF(ebookData[lang], { colorTheme })
+        const filename = `${ebookData[lang].title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${lang}.pdf`
+        doc.save(filename)
+    }
+
+    const loadChat = (chatId: string) => {
+        const chat = history.find(h => h.id === chatId)
+        if (chat) setMessages(chat.messages)
+    }
+
+    const handleNewChat = () => {
+        setMessages([])
+        setDetectedStructure(null)
+        setStructureApproved(false)
+        setSelectedTemplate(null)
+        setEbookData(null)
         setIsGenerating(false)
+        startChat()
     }
-}
-
-const handleDownload = async (lang: keyof MultiLanguageEbook) => {
-    if (!ebookData) return
-
-    const colorTheme = getColorThemeForTema(detectedStructure?.titulo || '')
-    const doc = await createPDF(ebookData[lang], { colorTheme })
-    const filename = `${ebookData[lang].title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${lang}.pdf`
-    doc.save(filename)
-}
-
-const loadChat = (chatId: string) => {
-    const chat = history.find(h => h.id === chatId)
-    if (chat) setMessages(chat.messages)
-}
-
-const handleNewChat = () => {
-    setMessages([])
-    setDetectedStructure(null)
-    setStructureApproved(false)
-    setSelectedTemplate(null)
-    setEbookData(null)
-    setIsGenerating(false)
-    startChat()
-}
 
 
-return (
-    <div className="min-h-screen bg-[#0F0B2A] text-white font-sans overflow-hidden flex flex-col">
-        {/* ... Styles & Background ... */}
-        <style>{`
+    return (
+        <div className="min-h-screen bg-[#0F0B2A] text-white font-sans overflow-hidden flex flex-col">
+            <style>{`
                 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
             `}</style>
 
-        <div className="fixed inset-0 pointer-events-none overflow-hidden">
-            <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-900/20 rounded-full blur-[120px]" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-900/20 rounded-full blur-[120px]" />
-        </div>
-
-        {/* HEADER */}
-        <header className="h-16 px-6 flex items-center justify-between shrink-0 relative z-50">
-            <div className="flex items-center gap-3">
-                <span className="text-2xl font-bold tracking-tight text-white drop-shadow-[0_0_15px_rgba(22,224,193,0.3)]">
-                    NEXUS<span className="text-[#16E0C1]">BOOK</span>
-                </span>
+            {/* BACKGROUND DECORATION */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden">
+                <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-900/20 rounded-full blur-[120px]" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-900/20 rounded-full blur-[120px]" />
             </div>
 
-            {/* VIPNEXUS IA - BRANDING DESTAQUE */}
-            <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-3">
-                <Sparkles className="w-5 h-5 text-[#16E0C1] animate-pulse" />
-                <span className="text-xl font-black tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-white via-[#16E0C1] to-[#7C3AED] drop-shadow-[0_0_15px_rgba(124,58,237,0.5)]">
-                    VIPNEXUS IA
-                </span>
-            </div>
+            {/* HEADER */}
+            <header className="h-16 px-6 flex items-center justify-between shrink-0 relative z-50">
+                <div className="flex items-center gap-3">
+                    <span className="text-2xl font-bold tracking-tight text-white drop-shadow-[0_0_15px_rgba(22,224,193,0.3)]">
+                        NEXUS<span className="text-[#16E0C1]">BOOK</span>
+                    </span>
+                    {/* Versão removida conforme solicitado */}
+                </div>
 
-            <div className="flex items-center gap-4">
-                {/* Botão Key Corrigido */}
-                <button
-                    onClick={() => setShowKeyModal(true)}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${apiKey ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400 animate-pulse'}`}
-                >
-                    <Key className="w-4 h-4" />
-                </button>
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 shadow-lg shadow-purple-500/20" />
-            </div>
-        </header>
+                {/* VIPNEXUS IA - BRANDING DESTAQUE */}
+                <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-3">
+                    <Sparkles className="w-5 h-5 text-[#16E0C1] animate-pulse" />
+                    <span className="text-xl font-black tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-white via-[#16E0C1] to-[#7C3AED] drop-shadow-[0_0_15px_rgba(124,58,237,0.5)]">
+                        VIPNEXUS IA
+                    </span>
+                </div>
 
-        {/* MAIN GRID */}
-        <main className="flex-1 p-6 pt-0 gap-6 grid grid-cols-12 h-[calc(100vh-64px)] overflow-hidden relative z-10">
-
-            {/* ESQUERDA - 3 COLUNAS - CORRIGIDA */}
-            <div className="col-span-3 h-full overflow-hidden">
-                <SidebarNichos onSelectNicho={handleSelectNicho} selectedTemplate={selectedTemplate} />
-            </div>
-
-            {/* CENTRO - 6 COLUNAS */}
-            <div className="col-span-6 h-full overflow-hidden">
-                <ChatArea
-                    messages={messages}
-                    onSendMessage={handleSendMessage}
-                    isThinking={isThinking}
-                    chatEndRef={chatEndRef}
-                    onConfigApi={() => setShowKeyModal(true)}
-                    apiKey={apiKey}
-                />
-            </div>
-
-            {/* DIREITA - 3 COLUNAS */}
-            <div className="col-span-3 h-full overflow-hidden">
-                <RightPanel
-                    history={history}
-                    onLoadChat={loadChat}
-                    handleNewChat={handleNewChat}
-                    detectedStructure={detectedStructure}
-                    structureApproved={structureApproved}
-                    onGenerate={handleGenerate}
-                    isGenerating={isGenerating}
-                    generationStatus={generationStatus}
-                    generationProgress={generationProgress}
-                    ebookData={ebookData}
-                    onDownload={handleDownload}
-                />
-            </div>
-        </main>
-
-        {/* MODAL API */}
-        <AnimatePresence>
-            {showKeyModal && (
-                <motion.div
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
-                >
-                    <motion.div
-                        initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }}
-                        className="bg-[#1e2029] border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl"
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => setShowKeyModal(true)}
+                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${apiKey ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400 animate-pulse'}`}
                     >
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                <Key className="w-5 h-5 text-[#16E0C1]" /> Configurar Inteligência
-                            </h3>
-                            <button onClick={() => setShowKeyModal(false)} className="text-white/50 hover:text-white"><X className="w-5 h-5" /></button>
-                        </div>
+                        <Key className="w-4 h-4" />
+                    </button>
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 shadow-lg shadow-purple-500/20" />
+                </div>
+            </header>
 
-                        <p className="text-sm text-white/60 mb-2">Sua Chave de API:</p>
-                        <input
-                            type="text"
-                            value={keyInput}
-                            onChange={(e) => setKeyInput(e.target.value)}
-                            placeholder="Cole aqui: sk-... (OpenAI) ou AIza... (Google)"
-                            className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-white text-sm focus:border-[#16E0C1] focus:outline-none mb-2 font-mono"
-                        />
+            {/* MAIN GRID */}
+            <main className="flex-1 p-6 pt-0 gap-6 grid grid-cols-12 h-[calc(100vh-64px)] overflow-hidden relative z-10">
 
-                        {/* Feedback Visual da Chave */}
-                        {keyInput.trim().startsWith('sk-') && (
-                            <div className="text-xs text-green-400 mb-4 flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-green-500"></span> OpenAI Detectado
+                {/* ESQUERDA - 3 COLUNAS */}
+                <div className="col-span-3 h-full overflow-hidden">
+                    <SidebarNichos onSelectNicho={handleSelectNicho} selectedTemplate={selectedTemplate} />
+                </div>
+
+                {/* CENTRO - 6 COLUNAS */}
+                <div className="col-span-6 h-full overflow-hidden">
+                    <ChatArea
+                        messages={messages}
+                        // Removed unused setMessages prop
+                        onSendMessage={handleSendMessage}
+                        isThinking={isThinking}
+                        chatEndRef={chatEndRef}
+                        onConfigApi={() => setShowKeyModal(true)}
+                        apiKey={apiKey}
+                    />
+                </div>
+
+                {/* DIREITA - 3 COLUNAS */}
+                <div className="col-span-3 h-full overflow-hidden">
+                    <RightPanel
+                        history={history}
+                        onLoadChat={loadChat}
+                        handleNewChat={handleNewChat}
+                        detectedStructure={detectedStructure}
+                        structureApproved={structureApproved}
+                        onGenerate={handleGenerate}
+                        isGenerating={isGenerating}
+                        generationStatus={generationStatus}
+                        generationProgress={generationProgress}
+                        ebookData={ebookData}
+                        onDownload={handleDownload}
+                    />
+                </div>
+            </main>
+
+            {/* MODAL API */}
+            <AnimatePresence>
+                {showKeyModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }}
+                            className="bg-[#1e2029] border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl"
+                        >
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <Key className="w-5 h-5 text-[#16E0C1]" /> Configurar Acesso
+                                </h3>
+                                <button onClick={() => setShowKeyModal(false)} className="text-white/50 hover:text-white"><X className="w-5 h-5" /></button>
                             </div>
-                        )}
-                        {keyInput.trim().startsWith('AIza') && (
-                            <div className="text-xs text-blue-400 mb-4 flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-blue-500"></span> Google Gemini Detectado
-                            </div>
-                        )}
-                        {keyInput.trim().startsWith('ghp_') && (
-                            <div className="text-xs text-purple-400 mb-4 flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-purple-500"></span> GitHub Models Detectado
-                            </div>
-                        )}
-
-                        {keyInput.length > 5 &&
-                            !keyInput.trim().startsWith('AIza') &&
-                            !keyInput.trim().startsWith('sk-') &&
-                            !keyInput.trim().startsWith('ghp_') && (
-                                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl mb-4 text-xs text-red-300">
-                                    <span className="font-bold block mb-1">⚠️ Formato Desconhecido</span>
-                                    O sistema tentará usar como Google Gemini, mas pode falhar.
-                                </div>
-                            )}
-
-                        <div className="text-[10px] text-white/30 mb-6 flex justify-between px-1">
-                            <span>Suporta: Google Gemini & OpenAI GPT-4</span>
-                        </div>
-
-                        <button onClick={handleSaveKey} className="w-full py-3 bg-[#16E0C1] hover:bg-[#12c4a9] text-[#0F0B2A] font-bold rounded-xl transition-all shadow-lg shadow-[#16E0C1]/20">
-                            Salvar e Conectar
-                        </button>
+                            <input
+                                type="text"
+                                value={keyInput}
+                                onChange={(e) => setKeyInput(e.target.value)}
+                                placeholder="Cole sua API Key do Google Gemini aqui..."
+                                className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-white text-sm focus:border-[#16E0C1] focus:outline-none mb-4 font-mono"
+                            />
+                            <button onClick={handleSaveKey} className="w-full py-3 bg-[#16E0C1] hover:bg-[#12c4a9] text-[#0F0B2A] font-bold rounded-xl transition-all">
+                                Salvar e Conectar
+                            </button>
+                        </motion.div>
                     </motion.div>
-                </motion.div>
-            )}
-        </AnimatePresence>
-    </div>
-);
+                )}
+            </AnimatePresence>
+        </div>
+    );
 }
