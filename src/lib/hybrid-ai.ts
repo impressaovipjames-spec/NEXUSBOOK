@@ -213,9 +213,9 @@ export async function chatWithAI(
         }
 
     } else {
-        // GOOGLE GEMINI
+        // GOOGLE GEMINI (MODELO GRATUITO)
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
 
         const history = messages.slice(0, -1).map(msg => ({
             role: msg.role === 'user' ? 'user' : 'model',
@@ -235,11 +235,26 @@ export async function chatWithAI(
             const result = await chat.sendMessage(lastMessage.content);
             return result.response.text();
         } catch (error: any) {
-            console.error("Gemini API Error:", error);
-            if (error.message?.includes('API key')) {
-                throw new Error('Chave Google inválida. (Verifique AIza...)');
+            console.error("Gemini API Error (Detalhes Completos):", error);
+            console.error("Error Message:", error.message);
+            console.error("Error Status:", error.status);
+
+            // Mensagens mais específicas
+            if (error.message?.includes('API_KEY_INVALID') || error.status === 400) {
+                throw new Error('❌ Chave API inválida. Verifique se copiou corretamente (deve começar com "AIza")');
             }
-            throw new Error(`Erro Google Gemini: ${error.message}`);
+            if (error.message?.includes('PERMISSION_DENIED') || error.status === 403) {
+                throw new Error('❌ Permissão negada. Habilite a API Gemini em console.cloud.google.com');
+            }
+            if (error.message?.includes('QUOTA_EXCEEDED')) {
+                throw new Error('❌ Cota excedida. Verifique os limites da sua conta Google Cloud.');
+            }
+            if (error.message?.includes('API key')) {
+                throw new Error(`❌ Erro na chave: ${error.message}`);
+            }
+
+            // Erro genérico com detalhes
+            throw new Error(`❌ Gemini API: ${error.message || error.toString()}`);
         }
     }
 }
@@ -272,7 +287,7 @@ export async function generateEbookContent(
         openai = new OpenAI({ apiKey, baseURL, dangerouslyAllowBrowser: true });
     } else {
         const genAI = new GoogleGenerativeAI(apiKey);
-        genAIModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        genAIModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
     }
 
     for (let langIndex = 0; langIndex < languages.length; langIndex++) {
