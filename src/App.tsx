@@ -364,28 +364,34 @@ Preço sugerido: ${template.precoSugerido}`
                 }
             `}</style>
 
-            {/* Header */}
-            <header className="h-16 border-b border-white/5 flex items-center justify-between px-6 bg-[#0f1115] shrink-0 z-10 box-border">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center font-bold text-white text-xl shadow-lg shadow-blue-500/20">N</div>
-                    <span className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">NEXUSBOOK</span>
+            {/* Header - Fixed & Styled */}
+            <header className="h-16 flex items-center justify-between px-6 bg-[#0f1115] border-b border-white/5 shrink-0 relative z-50">
+                <div className="flex items-center gap-4">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                        <span className="font-bold text-white text-lg">N</span>
+                    </div>
+                    <span className="font-bold text-xl tracking-tight text-white hidden md:block">NEXUSBOOK</span>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <h1 className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 font-medium text-white/40 text-sm tracking-widest uppercase hidden lg:block">
+                    VIPNEXUS IA
+                </h1>
+
+                <div className="flex items-center gap-3">
                     <button
                         onClick={handleNewChat}
-                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold uppercase tracking-wide transition-all shadow-lg shadow-blue-900/20 hover:scale-105"
+                        className="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold uppercase tracking-wide transition-all shadow-lg shadow-blue-900/20 flex items-center gap-2"
                     >
                         <MessageSquare className="w-3.5 h-3.5" />
-                        Nova Conversa
+                        <span className="hidden sm:inline">Nova Conversa</span>
                     </button>
 
                     <button
                         onClick={() => setShowKeyModal(true)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-medium transition-colors ${apiKey ? 'border-green-500/20 text-green-400 bg-green-500/10' : 'border-white/10 text-gray-400 hover:bg-white/5 hover:text-white'}`}
+                        className={`h-9 px-4 rounded-full border flex items-center gap-2 text-xs font-medium transition-all ${apiKey ? 'border-green-500/30 text-green-400 bg-green-500/10' : 'border-white/10 text-gray-400 hover:bg-white/5'}`}
                     >
                         <Key className="w-3.5 h-3.5" />
-                        {apiKey ? 'API Conectada' : 'Configurar API'}
+                        <span className="hidden sm:inline">{apiKey ? 'API Conectada' : 'Configurar API'}</span>
                     </button>
                 </div>
             </header>
@@ -438,15 +444,26 @@ Preço sugerido: ${template.precoSugerido}`
                             <Flame className="w-3 h-3 text-orange-400" />
                             Nichos em Alta
                         </div>
-                        <div className="panel-content overflow-y-auto p-2">
-                            {nichosQuentes.map((nicho) => (
-                                <div key={nicho.nome} onClick={() => handleSelectNicho(nicho.nome)} className="niche-card group">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <span className="text-xs font-medium text-white/80 group-hover:text-white leading-relaxed">{nicho.nome}</span>
-                                        <span className="text-[10px] text-orange-400 font-mono bg-orange-400/10 px-1 rounded ml-2">{nicho.temperatura}°</span>
+                        <div className="panel-content overflow-hidden p-4 flex items-end justify-between gap-2 h-full">
+                            {nichosQuentes.slice(0, 5).map((nicho) => (
+                                <div
+                                    key={nicho.nome}
+                                    onClick={() => handleSelectNicho(nicho.nome)}
+                                    className="group flex flex-col items-center justify-end w-full cursor-pointer h-full relative"
+                                >
+                                    <div className="mb-2 text-[10px] text-white/50 group-hover:text-white font-medium text-center leading-tight w-full truncate px-1 transition-colors z-10">
+                                        {nicho.nome.split(' ')[0]} {/* Show only first word for space */}
                                     </div>
-                                    <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                                        <div className="h-full bg-gradient-to-r from-orange-500 to-red-500" style={{ width: `${nicho.temperatura}%` }} />
+                                    <div className="w-full bg-white/5 rounded-t-lg relative overflow-hidden transition-all group-hover:bg-white/10" style={{ height: '80%' }}>
+                                        <div
+                                            className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-orange-600 to-yellow-400 rounded-t-lg transition-all duration-1000 ease-out group-hover:from-orange-500 group-hover:to-yellow-300"
+                                            style={{ height: `${nicho.temperatura}%` }}
+                                        />
+                                        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[9px] font-bold text-black/60">{nicho.temperatura}°</span>
+                                    </div>
+                                    {/* Tooltip on hover for full name */}
+                                    <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-black/90 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-20 pointer-events-none transition-opacity">
+                                        {nicho.nome}
                                     </div>
                                 </div>
                             ))}
@@ -545,12 +562,15 @@ Preço sugerido: ${template.precoSugerido}`
                         </div>
                     </div>
 
-                    <div className="panel flex-1">
-                        <div className="panel-header">
-                            <FileText className="w-3 h-3 text-green-400" />
-                            Estrutura
+                    <div className="panel flex-1 flex flex-col">
+                        <div className="panel-header justify-between">
+                            <div className="flex items-center gap-2">
+                                <FileText className="w-3 h-3 text-green-400" />
+                                Estrutura do eBook
+                            </div>
+                            {detectedStructure && <span className="text-[10px] bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20">Pronto</span>}
                         </div>
-                        <div className="panel-content overflow-y-auto p-3">
+                        <div className="panel-content overflow-y-auto p-0 bg-[#0f1115]/50 flex-1">
                             {detectedStructure ? (
                                 <div className="space-y-3">
                                     <div>
@@ -576,9 +596,14 @@ Preço sugerido: ${template.precoSugerido}`
                                     </button>
                                 </div>
                             ) : (
-                                <div className="h-full flex flex-col items-center justify-center text-center opacity-30">
-                                    <FileText className="w-8 h-8 mb-2" />
-                                    <p className="text-xs">Estrutura pendente</p>
+                                <div className="h-full flex flex-col items-center justify-center text-center opacity-20 space-y-4 p-8">
+                                    <div className="w-16 h-16 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center">
+                                        <FileText className="w-6 h-6" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-medium text-white/50">Aguardando Briefing</p>
+                                        <p className="text-[10px] max-w-[150px] mx-auto">Converse com a IA para gerar a estrutura automaticamente aqui.</p>
+                                    </div>
                                 </div>
                             )}
                         </div>
