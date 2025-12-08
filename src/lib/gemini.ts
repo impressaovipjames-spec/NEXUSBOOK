@@ -1,157 +1,305 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+// Gemini AI Service - Briefing Inteligente para criação de eBooks
+
+import { GoogleGenerativeAI } from '@google/generative-ai'
+
+export interface ChatMessage {
+    role: 'user' | 'assistant'
+    content: string
+}
+
+export interface EbookStructure {
+    titulo: string
+    subtitulo: string
+    autor: string
+    capitulos: string[]
+    publicoAlvo: string
+    tomTexto: string
+    idiomas: string[]
+}
 
 export interface EbookContent {
-    title: string;
-    subtitle: string;
-    author: string;
-    language: string;
-    coverImage?: string;
+    title: string
+    subtitle: string
+    author: string
     chapters: {
-        number: number;
-        title: string;
-        content: string;
-        summary: string;
-    }[];
+        title: string
+        content: string
+    }[]
+    introduction: string
+    conclusion: string
+    aboutAuthor: string
     metadata: {
-        pageCount: number;
-        wordCount: number;
-        readingTime: string;
-    };
+        language: string
+        pageCount: number
+        wordCount: number
+        generatedAt: string
+    }
 }
 
 export interface MultiLanguageEbook {
-    pt: EbookContent;
-    en: EbookContent;
-    es: EbookContent;
-    fr: EbookContent;
+    pt: EbookContent
+    en: EbookContent
+    es: EbookContent
+    fr: EbookContent
 }
 
-export interface ChatMessage {
-    role: 'user' | 'assistant';
-    content: string;
-}
+// Sistema de briefing - a IA faz perguntas inteligentes
+const BRIEFING_SYSTEM_PROMPT = `Você é um consultor especialista em criação de eBooks de sucesso. Seu papel é ajudar o usuário a definir o melhor conteúdo para seu eBook através de perguntas estratégicas.
 
+REGRAS IMPORTANTES:
+1. Faça perguntas uma de cada vez, não bombardeie o usuário
+2. Seja amigável, profissional e encorajador
+3. Use emojis com moderação para deixar a conversa agradável
+4. Quando tiver informações suficientes, proponha a estrutura do eBook
+5. Sempre pergunte se o usuário quer modificar algo antes de finalizar
+
+FLUXO DO BRIEFING:
+1. Primeiro: Entender o TEMA principal
+2. Segundo: Entender o PÚBLICO-ALVO (quem vai ler)
+3. Terceiro: Entender o OBJETIVO (o que o leitor vai ganhar)
+4. Quarto: Propor ESTRUTURA DE CAPÍTULOS
+5. Quinto: Confirmar ou ajustar
+
+QUANDO PROPOR A ESTRUTURA, USE ESTE FORMATO EXATO:
+---ESTRUTURA_PROPOSTA---
+TITULO: [título do ebook]
+SUBTITULO: [subtítulo]
+CAPITULOS:
+1. [nome do capítulo 1]
+2. [nome do capítulo 2]
+... (continue para todos os capítulos)
+PUBLICO: [descrição do público-alvo]
+TOM: [tom do texto: motivacional/técnico/amigável/profissional]
+---FIM_ESTRUTURA---
+
+Depois de propor a estrutura, pergunte se o usuário quer modificar algo.
+
+Se o usuário aprovar a estrutura (dizendo "ok", "pode gerar", "está bom", "gostei", "aprovo", etc.), responda EXATAMENTE:
+---ESTRUTURA_APROVADA---
+
+Agora vamos conversar! Quando o usuário iniciar, faça a primeira pergunta sobre o tema do eBook.`
+
+// Chat com IA para briefing
 export async function chatWithAI(
     apiKey: string,
-    messages: ChatMessage[]
+    messages: ChatMessage[],
+    templateContext?: string
 ): Promise<string> {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const genAI = new GoogleGenerativeAI(apiKey)
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+
+    // Construir histórico de conversa
+    const history = messages.map(msg => ({
+        role: msg.role === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.content }]
+    }))
+
+    // Adicionar contexto de template se houver
+    let systemPrompt = BRIEFING_SYSTEM_PROMPT
+    if (templateContext) {
+        systemPrompt += `\n\nCONTEXTO DO TEMPLATE SELECIONADO:\n${templateContext}`
+    }
 
     const chat = model.startChat({
-        history: messages.slice(0, -1).map(msg => ({
-            role: msg.role === 'user' ? 'user' : 'model',
-            parts: [{ text: msg.content }]
-        }))
-    });
+        history: [
+            { role: 'user', parts: [{ text: systemPrompt }] },
+            { role: 'model', parts: [{ text: 'Entendido! Estou pronto para ajudar a criar um eBook incrível. Vou fazer perguntas estratégicas para garantir que o conteúdo seja perfeito. Vamos começar! 📚' }] },
+            ...history.slice(0, -1) // Tudo exceto a última mensagem
+        ]
+    })
 
-    const lastMessage = messages[messages.length - 1];
-    const result = await chat.sendMessage(lastMessage.content);
-    return result.response.text();
+    const lastMessage = messages[messages.length - 1]
+    const result = await chat.sendMessage(lastMessage.content)
+
+    return result.response.text()
 }
 
-export async function generateEbookWithInstructions(
+// Extrair estrutura aprovada da conversa
+export function extractApprovedStructure(messages: ChatMessage[]): EbookStructure | null {
+    // Procurar pela última mensagem que contém a estrutura proposta
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const content = messages[i].content
+
+        if (content.includes('---ESTRUTURA_PROPOSTA---')) {
+            const match = content.match(/---ESTRUTURA_PROPOSTA---([\s\S]*?)---FIM_ESTRUTURA---/)
+            if (match) {
+                const estruturaText = match[1]
+
+                // Parse da estrutura
+                const tituloMatch = estruturaText.match(/TITULO:\s*(.+)/)
+                const subtituloMatch = estruturaText.match(/SUBTITULO:\s*(.+)/)
+                const publicoMatch = estruturaText.match(/PUBLICO:\s*(.+)/)
+                const tomMatch = estruturaText.match(/TOM:\s*(.+)/)
+
+                // Parse dos capítulos
+                const capitulosSection = estruturaText.match(/CAPITULOS:([\s\S]*?)(?=PUBLICO:|$)/)
+                const capitulos: string[] = []
+                if (capitulosSection) {
+                    const lines = capitulosSection[1].split('\n')
+                    for (const line of lines) {
+                        const capMatch = line.match(/\d+\.\s*(.+)/)
+                        if (capMatch) {
+                            capitulos.push(capMatch[1].trim())
+                        }
+                    }
+                }
+
+                if (tituloMatch && capitulos.length > 0) {
+                    return {
+                        titulo: tituloMatch[1].trim(),
+                        subtitulo: subtituloMatch ? subtituloMatch[1].trim() : '',
+                        autor: 'VIPNEXUS IA',
+                        capitulos,
+                        publicoAlvo: publicoMatch ? publicoMatch[1].trim() : '',
+                        tomTexto: tomMatch ? tomMatch[1].trim() : 'profissional',
+                        idiomas: ['pt', 'en', 'es', 'fr']
+                    }
+                }
+            }
+        }
+    }
+
+    return null
+}
+
+// Checar se a estrutura foi aprovada
+export function isStructureApproved(messages: ChatMessage[]): boolean {
+    for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].content.includes('---ESTRUTURA_APROVADA---')) {
+            return true
+        }
+    }
+    return false
+}
+
+// Gerar conteúdo completo do eBook baseado na estrutura aprovada
+export async function generateEbookContent(
     apiKey: string,
-    topic: string,
-    instructions: string,
-    languages: string[] = ['pt', 'en', 'es', 'fr'],
-    onProgress?: (step: string) => void
+    structure: EbookStructure,
+    onProgress?: (status: string, progress: number) => void
 ): Promise<MultiLanguageEbook> {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const genAI = new GoogleGenerativeAI(apiKey)
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
-    const languageMap: { [key: string]: string } = {
-        pt: 'Português',
-        en: 'English',
-        es: 'Español',
-        fr: 'Français'
-    };
+    const result: Partial<MultiLanguageEbook> = {}
+    const languages = [
+        { code: 'pt', name: 'Português Brasileiro' },
+        { code: 'en', name: 'English' },
+        { code: 'es', name: 'Español' },
+        { code: 'fr', name: 'Français' }
+    ]
 
-    const result: any = {};
+    for (let langIndex = 0; langIndex < languages.length; langIndex++) {
+        const lang = languages[langIndex]
+        const progress = ((langIndex + 1) / languages.length) * 100
 
-    for (const lang of languages) {
-        if (onProgress) onProgress(`Gerando conteúdo em ${languageMap[lang]}...`);
+        onProgress?.(`Gerando em ${lang.name}...`, progress)
 
         const prompt = `
-Você é um autor best-seller e especialista em criar conteúdo de alta qualidade.
+Você é um escritor profissional de eBooks. Crie o conteúdo COMPLETO de um eBook com as seguintes especificações:
 
-TEMA DO EBOOK: "${topic}"
+TÍTULO: ${structure.titulo}
+SUBTÍTULO: ${structure.subtitulo}
+AUTOR: ${structure.autor}
+PÚBLICO-ALVO: ${structure.publicoAlvo}
+TOM DO TEXTO: ${structure.tomTexto}
+IDIOMA: ${lang.name}
 
-INSTRUÇÕES ESPECIAIS DO AUTOR:
-${instructions}
+CAPÍTULOS A CRIAR:
+${structure.capitulos.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 
-Crie um eBook COMPLETO e PROFISSIONAL em ${languageMap[lang]} seguindo estas diretrizes:
+INSTRUÇÕES:
+1. Escreva TODO o conteúdo em ${lang.name}
+2. Cada capítulo deve ter no mínimo 800 palavras
+3. Use parágrafos curtos para facilitar a leitura
+4. Inclua exemplos práticos e dicas acionáveis
+5. Mantenha o tom ${structure.tomTexto} consistente
+6. Crie uma introdução cativante e uma conclusão inspiradora
 
-1. O eBook deve ter entre 5-7 capítulos DENSOS e informativos
-2. Cada capítulo deve ter pelo menos 800-1200 palavras
-3. O conteúdo deve ser PRÁTICO, ACIONÁVEL e com EXEMPLOS REAIS
-4. Evite enrolação - vá direto ao ponto com informações valiosas
-5. Use storytelling quando apropriado para engajar o leitor
-6. Inclua dicas, estratégias e passos práticos
-
-RETORNE APENAS um JSON válido (sem markdown, sem texto extra) com esta estrutura:
-
+FORMATO DE RESPOSTA (JSON):
 {
-  "title": "Título chamativo e comercial",
-  "subtitle": "Subtítulo explicativo",
-  "author": "Nome profissional do autor (crie um pseudônimo relacionado ao nicho)",
-  "language": "${languageMap[lang]}",
+  "title": "título em ${lang.name}",
+  "subtitle": "subtítulo em ${lang.name}",
+  "author": "${structure.autor}",
+  "introduction": "texto completo da introdução (mínimo 500 palavras)",
   "chapters": [
     {
-      "number": 1,
-      "title": "Título do Capítulo",
-      "content": "Conteúdo completo do capítulo com parágrafos bem estruturados...",
-      "summary": "Resumo de 1-2 linhas do capítulo"
+      "title": "título do capítulo 1",
+      "content": "conteúdo completo do capítulo 1 (mínimo 800 palavras)"
     }
-  ]
+  ],
+  "conclusion": "texto completo da conclusão (mínimo 400 palavras)",
+  "aboutAuthor": "breve bio do autor (100 palavras)"
 }
 
-IMPORTANTE: Gere pelo menos 5 capítulos completos e substanciais.
-`;
+Responda APENAS com o JSON válido, sem explicações adicionais.`
 
         try {
-            const response = await model.generateContent(prompt);
-            const text = response.response.text();
-            const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-            const ebookData = JSON.parse(cleanText);
+            const response = await model.generateContent(prompt)
+            const text = response.response.text()
+
+            // Limpar o texto para extrair JSON
+            let jsonText = text.trim()
+            if (jsonText.startsWith('```json')) {
+                jsonText = jsonText.replace(/^```json\n?/, '').replace(/\n?```$/, '')
+            } else if (jsonText.startsWith('```')) {
+                jsonText = jsonText.replace(/^```\n?/, '').replace(/\n?```$/, '')
+            }
+
+            const ebookContent = JSON.parse(jsonText)
 
             // Calcular metadados
-            const totalWords = ebookData.chapters.reduce((sum: number, ch: any) =>
-                sum + ch.content.split(/\s+/).length, 0
-            );
-            const readingTimeMinutes = Math.ceil(totalWords / 200); // 200 palavras por minuto
+            let totalWords = 0
+            totalWords += ebookContent.introduction?.split(/\s+/).length || 0
+            totalWords += ebookContent.conclusion?.split(/\s+/).length || 0
+            for (const chapter of ebookContent.chapters || []) {
+                totalWords += chapter.content?.split(/\s+/).length || 0
+            }
 
-            result[lang] = {
-                ...ebookData,
+            const pageCount = Math.ceil(totalWords / 250) // ~250 palavras por página
+
+            result[lang.code as keyof MultiLanguageEbook] = {
+                title: ebookContent.title || structure.titulo,
+                subtitle: ebookContent.subtitle || structure.subtitulo,
+                author: ebookContent.author || structure.autor,
+                introduction: ebookContent.introduction || '',
+                chapters: ebookContent.chapters || [],
+                conclusion: ebookContent.conclusion || '',
+                aboutAuthor: ebookContent.aboutAuthor || '',
                 metadata: {
-                    pageCount: Math.ceil(totalWords / 250), // ~250 palavras por página
+                    language: lang.code,
+                    pageCount,
                     wordCount: totalWords,
-                    readingTime: `${readingTimeMinutes} minutos`
+                    generatedAt: new Date().toISOString()
                 }
-            };
-
+            }
         } catch (error) {
-            console.error(`Erro ao gerar eBook em ${lang}:`, error);
-            throw new Error(`Falha ao gerar conteúdo em ${languageMap[lang]}`);
+            console.error(`Erro ao gerar conteúdo em ${lang.name}:`, error)
+            throw new Error(`Erro ao gerar conteúdo em ${lang.name}: ${error}`)
         }
-
-        // Pequeno delay para não sobrecarregar a API
-        await new Promise(r => setTimeout(r, 1000));
     }
 
-    return result as MultiLanguageEbook;
+    onProgress?.('Concluído!', 100)
+
+    return result as MultiLanguageEbook
 }
 
-export async function generateEbook(
-    apiKey: string,
-    topic: string,
-    onProgress?: (step: string) => void
-): Promise<MultiLanguageEbook> {
-    return generateEbookWithInstructions(
-        apiKey,
-        topic,
-        "Crie um conteúdo profissional, prático e de alta qualidade que realmente ajude o leitor.",
-        ['pt', 'en', 'es', 'fr'],
-        onProgress
-    );
+// Função para iniciar o chat de briefing
+export function getInitialBriefingMessage(templateContext?: string): ChatMessage {
+    let message = `Olá! 👋 Sou sua assistente de criação de eBooks.
+
+Vou te ajudar a criar um eBook profissional que vende! Vou fazer algumas perguntas para entender exatamente o que você precisa.`
+
+    if (templateContext) {
+        message += `\n\n${templateContext}\n\nMe conta: qual é o tema específico do seu eBook?`
+    } else {
+        message += `\n\n**Qual é o tema do eBook que você quer criar?** 📚
+
+Pode ser qualquer coisa: saúde, finanças, relacionamentos, receitas, desenvolvimento pessoal, negócios... Me diz!`
+    }
+
+    return {
+        role: 'assistant',
+        content: message
+    }
 }
