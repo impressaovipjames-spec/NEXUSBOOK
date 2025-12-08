@@ -10,7 +10,7 @@ import {
 import {
     chatWithAI,
     getInitialBriefingMessage,
-    extractApprovedStructure, // Check if this is exported from hybrid-ai.ts
+    extractApprovedStructure,
     isStructureApproved,
     generateEbookContent
 } from './lib/hybrid-ai';
@@ -24,7 +24,7 @@ import type {
 
 import { nichosQuentes } from './lib/nichos';
 import { templates, getTemplateByNicho } from './lib/templates';
-import type { EbookTemplate } from './lib/templates'; // Import EbookTemplate as type
+import type { EbookTemplate } from './lib/templates';
 import { createPDF } from './lib/pdf';
 import { getColorThemeForTema } from './lib/coverGenerator';
 
@@ -50,7 +50,6 @@ interface RightPanelProps {
 
 interface ChatAreaProps {
     messages: ChatMessage[];
-    // Removed unused setMessages
     onSendMessage: (text: string) => void;
     isThinking: boolean;
     chatEndRef: React.RefObject<HTMLDivElement | null>;
@@ -70,34 +69,33 @@ const SidebarNichos: React.FC<SidebarNichosProps> = ({ onSelectNicho, selectedTe
             </h2>
 
             {/* Termômetro Visual com Labels */}
-            <div className="flex gap-1 items-end justify-between h-[180px] px-1 mb-8">
-                {nichosQuentes.slice(0, 6).map((n, i) => (
+            <div className="flex gap-2 items-end justify-between h-[220px] px-2 mb-4">
+                {nichosQuentes.slice(0, 5).map((n, i) => (
                     <div key={i} className="flex flex-col items-center h-full justify-end w-full group cursor-pointer" onClick={() => onSelectNicho(n.nome)}>
 
                         {/* Bar Container */}
-                        <div className="w-full relative flex-1 flex items-end px-1">
+                        <div className="w-full relative flex-1 flex items-end justify-center px-1 pb-2">
                             <motion.div
                                 initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: `${(n.temperatura / 100) * 80}%` }} // Max 80% height
+                                animate={{ opacity: 1, height: `${(n.temperatura / 100) * 100}%` }}
                                 transition={{ duration: 0.6, delay: i * 0.1 }}
-                                className="w-full rounded-t-sm shadow-lg group-hover:brightness-125 transition-all opacity-80 group-hover:opacity-100"
+                                className="w-full max-w-[24px] rounded-t-sm shadow-lg group-hover:brightness-125 transition-all opacity-90 group-hover:opacity-100"
                                 style={{
                                     background: "linear-gradient(to top, #F7D44C, #FF9A32, #FF4A24)",
-                                    minHeight: '4px'
+                                    minHeight: '10px'
                                 }}
                             >
-                                {/* Hover Tooltip (Detalhado) */}
-                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/90 text-[10px] px-2 py-1 rounded-md border border-white/10 whitespace-nowrap z-20 pointer-events-none">
-                                    <div className="font-bold text-orange-400">{n.nome}</div>
-                                    <div className="text-white/60">{n.temperatura}° Temperatura</div>
+                                {/* Temperatura no Topo */}
+                                <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-bold text-orange-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {n.temperatura}°
                                 </div>
                             </motion.div>
                         </div>
 
-                        {/* Label Abaixo da Barra */}
-                        <div className="h-16 w-full flex items-start justify-center pt-2 border-t border-white/5">
-                            <span className="text-[9px] text-white/50 group-hover:text-white transition-colors rotate-[-90deg] whitespace-nowrap origin-top w-[80px] mt-1 text-right">
-                                {n.nome.length > 15 ? n.nome.substring(0, 15) + '...' : n.nome}
+                        {/* Label Abaixo da Barra (Área Escura) */}
+                        <div className="h-[100px] w-full flex items-start justify-center pt-2 border-t border-white/5 relative">
+                            <span className="text-[10px] font-medium text-white/70 group-hover:text-white transition-colors rotate-[-45deg] whitespace-nowrap origin-top-left translate-x-3 translate-y-1 w-[100px]">
+                                {n.nome}
                             </span>
                         </div>
                     </div>
@@ -112,7 +110,7 @@ const SidebarNichos: React.FC<SidebarNichosProps> = ({ onSelectNicho, selectedTe
                 {templates.map((t) => (
                     <button
                         key={t.id}
-                        onClick={() => onSelectNicho(t.nome.split(' ')[0])} // Simplificação para demo
+                        onClick={() => onSelectNicho(t.nome.split(' ')[0])}
                         className={`w-full text-left p-3 rounded-xl border transition-all text-xs group ${selectedTemplate?.id === t.id
                             ? "bg-purple-500/20 border-purple-500/50 text-white"
                             : "bg-white/5 border-transparent hover:bg-white/10 text-white/70"
@@ -373,34 +371,28 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, onSendMessage, isThinking
 // DASHBOARD PRINCIPAL (SOLARIS)
 // =============================
 export default function App() {
-    // --- ESTADOS GLOBAIS (Mantendo lógica original) ---
+    // --- ESTADOS GLOBAIS ---
     const [apiKey, setApiKey] = useState("");
     const [showKeyModal, setShowKeyModal] = useState(false);
     const [keyInput, setKeyInput] = useState("");
+
+    // ... rest of state
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isThinking, setIsThinking] = useState(false);
     const [selectedTemplate, setSelectedTemplate] = useState<EbookTemplate | null>(null);
     const [detectedStructure, setDetectedStructure] = useState<EbookStructure | null>(null);
     const [structureApproved, setStructureApproved] = useState(false);
     const [history, setHistory] = useState<{ id: string, title: string, date: string, messages: ChatMessage[] }[]>([]);
-
-    // Geração Reforçada
     const [generationStatus, setGenerationStatus] = useState('');
     const [generationProgress, setGenerationProgress] = useState(0);
     const [isGenerating, setIsGenerating] = useState(false);
     const [ebookData, setEbookData] = useState<MultiLanguageEbook | null>(null);
-
-    // Refs
-    // Initialize with null but cast to match the expected non-null MutableRefObject if needed, or simply let it behave as RefObject
     const chatEndRef = useRef<HTMLDivElement>(null);
 
-    // Carregar dados iniciais
+
     useEffect(() => {
         const storedKey = localStorage.getItem('gemini_api_key');
         if (storedKey) setApiKey(storedKey);
-
-        const savedHistory = localStorage.getItem('nexus_chat_history');
-        if (savedHistory) setHistory(JSON.parse(savedHistory));
     }, []);
 
     // Scroll Chat
@@ -415,7 +407,28 @@ export default function App() {
         setStructureApproved(isStructureApproved(messages));
     }, [messages]);
 
-    // --- LÓGICA DE NEGÓCIO ---
+    // Salvar Histórico automaticamente quando a estrutura é aprovada
+    useEffect(() => {
+        if (structureApproved && detectedStructure) {
+            setHistory(prev => {
+                // Evitar duplicação simples pelo título
+                if (prev.some(h => h.title === detectedStructure.titulo)) return prev;
+
+                const newHistory = [
+                    {
+                        id: crypto.randomUUID(),
+                        title: detectedStructure.titulo,
+                        date: new Date().toLocaleDateString('pt-BR'),
+                        messages
+                    },
+                    ...prev
+                ];
+                localStorage.setItem('nexus_chat_history', JSON.stringify(newHistory));
+                return newHistory;
+            });
+        }
+    }, [structureApproved, detectedStructure]);
+
 
     const handleSaveKey = () => {
         if (keyInput.trim()) {
@@ -442,6 +455,7 @@ export default function App() {
         setMessages([initialMessage])
     }
 
+
     const handleSendMessage = async (text: string) => {
         const userMessage: ChatMessage = { role: 'user', content: text }
         const newMessages = [...messages, userMessage]
@@ -460,6 +474,7 @@ export default function App() {
         }
     }
 
+    // ... (rest of handlers unchanged)
     const handleSelectNicho = (nichoNome: string) => {
         const template = getTemplateByNicho(nichoNome)
         if (template) setSelectedTemplate(template)
@@ -526,13 +541,13 @@ export default function App() {
 
     return (
         <div className="min-h-screen bg-[#0F0B2A] text-white font-sans overflow-hidden flex flex-col">
+            {/* ... Styles & Background ... */}
             <style>{`
                 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
             `}</style>
 
-            {/* BACKGROUND DECORATION */}
             <div className="fixed inset-0 pointer-events-none overflow-hidden">
                 <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-900/20 rounded-full blur-[120px]" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-900/20 rounded-full blur-[120px]" />
@@ -544,7 +559,6 @@ export default function App() {
                     <span className="text-2xl font-bold tracking-tight text-white drop-shadow-[0_0_15px_rgba(22,224,193,0.3)]">
                         NEXUS<span className="text-[#16E0C1]">BOOK</span>
                     </span>
-                    {/* Versão removida conforme solicitado */}
                 </div>
 
                 {/* VIPNEXUS IA - BRANDING DESTAQUE */}
@@ -556,6 +570,7 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-4">
+                    {/* Botão Key Corrigido */}
                     <button
                         onClick={() => setShowKeyModal(true)}
                         className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${apiKey ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400 animate-pulse'}`}
@@ -569,7 +584,7 @@ export default function App() {
             {/* MAIN GRID */}
             <main className="flex-1 p-6 pt-0 gap-6 grid grid-cols-12 h-[calc(100vh-64px)] overflow-hidden relative z-10">
 
-                {/* ESQUERDA - 3 COLUNAS */}
+                {/* ESQUERDA - 3 COLUNAS - CORRIGIDA */}
                 <div className="col-span-3 h-full overflow-hidden">
                     <SidebarNichos onSelectNicho={handleSelectNicho} selectedTemplate={selectedTemplate} />
                 </div>
@@ -578,7 +593,6 @@ export default function App() {
                 <div className="col-span-6 h-full overflow-hidden">
                     <ChatArea
                         messages={messages}
-                        // Removed unused setMessages prop
                         onSendMessage={handleSendMessage}
                         isThinking={isThinking}
                         chatEndRef={chatEndRef}
@@ -618,26 +632,33 @@ export default function App() {
                         >
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                    <Key className="w-5 h-5 text-[#16E0C1]" /> Configurar Acesso
+                                    <Key className="w-5 h-5 text-[#16E0C1]" /> Configurar Inteligência
                                 </h3>
                                 <button onClick={() => setShowKeyModal(false)} className="text-white/50 hover:text-white"><X className="w-5 h-5" /></button>
                             </div>
+
+                            <p className="text-sm text-white/60 mb-2">Sua Chave de API:</p>
                             <input
                                 type="text"
                                 value={keyInput}
                                 onChange={(e) => setKeyInput(e.target.value)}
-                                placeholder="Cole sua API Key do Google Gemini aqui..."
-                                className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-white text-sm focus:border-[#16E0C1] focus:outline-none mb-4 font-mono"
+                                placeholder="Cole aqui: sk-... (OpenAI) ou AIza... (Google)"
+                                className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-white text-sm focus:border-[#16E0C1] focus:outline-none mb-2 font-mono"
                             />
-                            {keyInput.length > 0 && !keyInput.trim().startsWith('AIza') && !keyInput.trim().startsWith('sk-') && (
-                                <p className="text-orange-400 text-xs mb-4 flex items-center gap-2">
-                                    ⚠️ Formato incomum. Use chaves do Google (Começa com "AIza") OU OpenAI (Começa com "sk-").
-                                </p>
+
+                            {/* Aviso Amigável sobre Formatos */}
+                            {keyInput.length > 5 && !keyInput.trim().startsWith('AIza') && !keyInput.trim().startsWith('sk-') && (
+                                <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl mb-4 text-xs text-blue-300">
+                                    <span className="font-bold block mb-1">ℹ️ Formato diferente detectado (ex: GitHub)</span>
+                                    Isso parece ser uma chave pessoal. O sistema tentará usá-la com o Google Gemini por padrão.
+                                </div>
                             )}
-                            <div className="text-xs text-white/40 mb-4 text-center">
-                                Não tem uma chave? <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-[#16E0C1] hover:underline">Gerar chave no Google AI Studio</a>
+
+                            <div className="text-[10px] text-white/30 mb-6 flex justify-between px-1">
+                                <span>Suporta: Google Gemini & OpenAI GPT-4</span>
                             </div>
-                            <button onClick={handleSaveKey} className="w-full py-3 bg-[#16E0C1] hover:bg-[#12c4a9] text-[#0F0B2A] font-bold rounded-xl transition-all">
+
+                            <button onClick={handleSaveKey} className="w-full py-3 bg-[#16E0C1] hover:bg-[#12c4a9] text-[#0F0B2A] font-bold rounded-xl transition-all shadow-lg shadow-[#16E0C1]/20">
                                 Salvar e Conectar
                             </button>
                         </motion.div>
