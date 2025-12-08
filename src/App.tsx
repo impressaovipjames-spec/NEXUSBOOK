@@ -4,7 +4,7 @@ import {
     Key, X, ChevronRight, FileText, ExternalLink,
     Loader2, CheckCircle2, MessageSquare, LayoutGrid
 } from 'lucide-react'
-import logo from './assets/logo.png'
+import logo from './assets/nexus-logo.png'
 import {
     chatWithAI,
     getInitialBriefingMessage,
@@ -213,13 +213,8 @@ Preço sugerido: ${template.precoSugerido}`
 
     return (
         <div className="min-h-screen bg-[#080812]">
-            {/* DEBUG TEST */}
-            <div style={{ background: 'red', color: 'white', padding: '20px', fontSize: '24px', textAlign: 'center', position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
-                ⚠️ NEXUSBOOK v3.1 TEST - SE VOCÊ VER ISSO, O CÓDIGO NOVO ESTÁ FUNCIONANDO ⚠️
-            </div>
-
             {/* Header */}
-            <header className="h-14 border-b border-white/10 flex items-center justify-between px-4 mt-16">
+            <header className="h-14 border-b border-white/10 flex items-center justify-between px-4">
                 <div className="flex items-center gap-3">
                     <img src={logo} alt="NEXUSBOOK" className="h-8" />
                     <span className="font-bold text-lg">NEXUSBOOK</span>

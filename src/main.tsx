@@ -4,7 +4,7 @@ import './index.css'
 import App from './App.tsx'
 
 
-console.log('%c NEXUSBOOK v3.1 ', 'background: #7c3aed; color: white; padding: 4px 8px; border-radius: 4px;')
+console.log('%c NEXUSBOOK v3.2 - Stable ', 'background: #10b981; color: white; padding: 4px 8px; border-radius: 4px;')
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
