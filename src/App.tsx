@@ -267,9 +267,64 @@ Preço sugerido: ${template.precoSugerido}`
     }
 
     return (
-        <div className="min-h-screen bg-[#080812] flex flex-col overflow-hidden">
+        <div className="min-h-screen bg-[#080812] text-white flex flex-col overflow-hidden font-sans">
+            {/* FORÇANDO O CSS AQUI PARA GARANTIR QUE CARREGUE */}
+            <style>{`
+                .dashboard-container {
+                    display: grid;
+                    grid-template-columns: 260px 1fr 300px;
+                    gap: 12px;
+                    height: calc(100vh - 64px);
+                    padding: 12px;
+                    overflow: hidden;
+                }
+                @media (max-width: 1200px) {
+                    .dashboard-container { grid-template-columns: 220px 1fr 260px; }
+                }
+                @media (max-width: 1024px) {
+                    .dashboard-container { grid-template-columns: 200px 1fr 240px; }
+                }
+                @media (max-width: 768px) {
+                    .dashboard-container { 
+                        display: flex; 
+                        flex-direction: column; 
+                        height: auto; 
+                        overflow-y: auto;
+                    }
+                }
+                
+                .panel {
+                    background: rgba(255, 255, 255, 0.03);
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    border-radius: 12px;
+                    display: flex;
+                    flex-direction: column;
+                    overflow: hidden;
+                }
+                .panel-header {
+                    padding: 12px;
+                    background: rgba(255, 255, 255, 0.02);
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                    font-weight: 600;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 14px;
+                }
+                .panel-content {
+                    padding: 12px;
+                    overflow-y: auto;
+                    flex: 1;
+                }
+                
+                /* Scrollbar */
+                ::-webkit-scrollbar { width: 6px; height: 6px; }
+                ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+                ::-webkit-scrollbar-thumb { background: #4c1d95; border-radius: 3px; }
+            `}</style>
+
             {/* Header */}
-            <header className="h-16 border-b border-white/10 flex items-center justify-between px-6 bg-[#080812] shrink-0 z-10">
+            <header className="h-16 border-b border-white/10 flex items-center justify-between px-6 bg-[#0f0f1a] shrink-0 z-10 box-border">
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center font-bold text-white text-xl">N</div>
