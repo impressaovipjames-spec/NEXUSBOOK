@@ -86,7 +86,7 @@ export async function chatWithAI(
     templateContext?: string
 ): Promise<string> {
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
 
     // Construir histórico de conversa
     const history = messages.map(msg => ({
@@ -189,7 +189,7 @@ export async function generateEbookContent(
     onProgress?: (status: string, progress: number) => void
 ): Promise<MultiLanguageEbook> {
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
 
     const result: Partial<MultiLanguageEbook> = {}
     const languages = [

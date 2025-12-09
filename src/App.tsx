@@ -13,14 +13,14 @@ import {
     extractApprovedStructure,
     isStructureApproved,
     generateEbookContent
-} from './lib/gemini';
+} from './lib/hybrid-ai';
 
 // Type Imports
 import type {
     EbookStructure,
     ChatMessage,
     MultiLanguageEbook
-} from './lib/gemini';
+} from './lib/hybrid-ai';
 
 import { nichosQuentes } from './lib/nichos';
 import { templates, getTemplateByNicho } from './lib/templates';
@@ -114,8 +114,8 @@ const SidebarNichos: React.FC<SidebarNichosProps> = ({ onSelectNicho, selectedTe
                         key={t.id}
                         onClick={() => onSelectNicho(t.nome.split(' ')[0])} // Simplificação para demo
                         className={`w-full text-left p-3 rounded-xl border transition-all text-xs group ${selectedTemplate?.id === t.id
-                                ? "bg-purple-500/20 border-purple-500/50 text-white"
-                                : "bg-white/5 border-transparent hover:bg-white/10 text-white/70"
+                            ? "bg-purple-500/20 border-purple-500/50 text-white"
+                            : "bg-white/5 border-transparent hover:bg-white/10 text-white/70"
                             }`}
                     >
                         <div className="font-medium group-hover:text-white mb-0.5 flex items-center gap-2">
@@ -226,8 +226,8 @@ const RightPanel: React.FC<RightPanelProps> = ({
                         onClick={onGenerate}
                         disabled={!structureApproved || isGenerating}
                         className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${structureApproved
-                                ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:scale-[1.02] text-white shadow-lg shadow-green-900/20"
-                                : "bg-white/5 text-white/30 cursor-not-allowed"
+                            ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:scale-[1.02] text-white shadow-lg shadow-green-900/20"
+                            : "bg-white/5 text-white/30 cursor-not-allowed"
                             }`}
                     >
                         {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
@@ -324,8 +324,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, onSendMessage, isThinking
                         >
                             <div
                                 className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed shadow-lg ${msg.role === 'user'
-                                        ? "bg-[#7C3AED] text-white rounded-br-none"
-                                        : "bg-[#1e2029] text-gray-100 border border-white/5 rounded-bl-none"
+                                    ? "bg-[#7C3AED] text-white rounded-br-none"
+                                    : "bg-[#1e2029] text-gray-100 border border-white/5 rounded-bl-none"
                                     }`}
                             >
                                 <p className="whitespace-pre-wrap">{msg.content}</p>

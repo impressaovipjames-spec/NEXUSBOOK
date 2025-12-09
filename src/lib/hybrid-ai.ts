@@ -83,8 +83,9 @@ Agora vamos conversar! Quando o usuário iniciar, faça a primeira pergunta sobr
 
 // --- FUNÇÕES HELPER ---
 
-function detectProvider(apiKey: string): 'google' | 'openai' {
-    if (apiKey.startsWith('sk-') || apiKey.startsWith('ghp_')) return 'openai'; // Force OpenAI for ghp_ as requested by user intent (though technically wrong, we will try or fail inside)
+function detectProvider(apiKey: string): 'google' | 'openai' | 'groq' {
+    if (apiKey.startsWith('gsk_')) return 'groq'; // Groq keys start with gsk_
+    if (apiKey.startsWith('sk-') || apiKey.startsWith('ghp_')) return 'openai';
     return 'google';
 }
 
@@ -165,7 +166,7 @@ export async function chatWithAI(
     apiKey: string,
     messages: ChatMessage[],
     templateContext?: string,
-    forcedProvider?: 'google' | 'openai'
+    forcedProvider?: 'google' | 'openai' | 'groq'
 ): Promise<string> {
     const provider = forcedProvider || detectProvider(apiKey);
     let systemPrompt = BRIEFING_SYSTEM_PROMPT;
@@ -173,7 +174,33 @@ export async function chatWithAI(
         systemPrompt += `\n\nCONTEXTO DO TEMPLATE SELECIONADO:\n${templateContext}`;
     }
 
-    if (provider === 'openai') {
+    if (provider === 'groq') {
+        // GROQ - 100% GRATUITO, SUPER RÁPIDO!
+        const groq = new OpenAI({
+            apiKey,
+            baseURL: 'https://api.groq.com/openai/v1',
+            dangerouslyAllowBrowser: true
+        });
+
+        try {
+            const completion = await groq.chat.completions.create({
+                model: "llama-3.3-70b-versatile", // Modelo mais recente e ativo
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    ...messages.map(m => ({ role: m.role, content: m.content }))
+                ],
+            });
+            return completion.choices[0].message.content || "Sem resposta.";
+        } catch (error: any) {
+            console.error("Groq API Error:", error);
+            const msg = error.message || error.toString();
+            if (error.code === 'invalid_api_key' || error.status === 401) {
+                throw new Error(`❌ Chave Groq inválida. Crie uma grátis em: console.groq.com`);
+            }
+            throw new Error(`❌ Erro Groq: ${msg}`);
+        }
+
+    } else if (provider === 'openai') {
         // Handle custom endpoints or just standard OpenAI
         // Note: ghp_ keys are for GitHub models but usually require a different base URL (https://models.inference.ai.azure.com)
         // We will try standard OpenAI first, if it fails, and if key starts with ghp_, maybe we could try the other endpoint?
@@ -213,9 +240,9 @@ export async function chatWithAI(
         }
 
     } else {
-        // GOOGLE GEMINI (MODELO GRATUITO)
+        // GOOGLE GEMINI (MODELO GRATUITO - GEMINI PRO)
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
         const history = messages.slice(0, -1).map(msg => ({
             role: msg.role === 'user' ? 'user' : 'model',
@@ -263,7 +290,7 @@ export async function generateEbookContent(
     apiKey: string,
     structure: EbookStructure,
     onProgress?: (status: string, progress: number) => void,
-    forcedProvider?: 'google' | 'openai'
+    forcedProvider?: 'google' | 'openai' | 'groq'
 ): Promise<MultiLanguageEbook> {
     const provider = forcedProvider || detectProvider(apiKey);
     const result: Partial<MultiLanguageEbook> = {};
@@ -278,7 +305,14 @@ export async function generateEbookContent(
     let genAIModel: any = null;
     let modelName = "gpt-4-turbo-preview";
 
-    if (provider === 'openai') {
+    if (provider === 'groq') {
+        openai = new OpenAI({
+            apiKey,
+            baseURL: 'https://api.groq.com/openai/v1',
+            dangerouslyAllowBrowser: true
+        });
+        modelName = "llama-3.3-70b-versatile";
+    } else if (provider === 'openai') {
         let baseURL = undefined;
         if (apiKey.startsWith('ghp_')) {
             baseURL = "https://models.inference.ai.azure.com";
@@ -287,7 +321,7 @@ export async function generateEbookContent(
         openai = new OpenAI({ apiKey, baseURL, dangerouslyAllowBrowser: true });
     } else {
         const genAI = new GoogleGenerativeAI(apiKey);
-        genAIModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+        genAIModel = genAI.getGenerativeModel({ model: 'gemini-pro' });
     }
 
     for (let langIndex = 0; langIndex < languages.length; langIndex++) {
