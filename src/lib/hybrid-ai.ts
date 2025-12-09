@@ -201,18 +201,12 @@ export async function chatWithAI(
         }
 
     } else if (provider === 'openai') {
-        // Handle custom endpoints or just standard OpenAI
-        // Note: ghp_ keys are for GitHub models but usually require a different base URL (https://models.inference.ai.azure.com)
-        // We will try standard OpenAI first, if it fails, and if key starts with ghp_, maybe we could try the other endpoint?
-        // For now, let's just assume standard OpenAI or user knows what they are doing.
-
         let baseURL = undefined;
-        let modelName = "gpt-4-turbo-preview"; // Default OpenAI
+        let modelName = "gpt-4-turbo-preview";
 
         if (apiKey.startsWith('ghp_')) {
-            // It's a GitHub Model key!
             baseURL = "https://models.inference.ai.azure.com";
-            modelName = "gpt-4o"; // GitHub models often use this
+            modelName = "gpt-4o";
         }
 
         const openai = new OpenAI({
@@ -286,6 +280,8 @@ export async function chatWithAI(
     }
 }
 
+// --- FUNÇÃO DE PRODUÇÃO EM ESCALA ("LINHA DE MONTAGEM") ---
+// Gera capítulo por capítulo para criar eBooks GIGANTES sem estourar token.
 export async function generateEbookContent(
     apiKey: string,
     structure: EbookStructure,
@@ -295,23 +291,22 @@ export async function generateEbookContent(
     const provider = forcedProvider || detectProvider(apiKey);
     const result: Partial<MultiLanguageEbook> = {};
     const languages = [
-        { code: 'pt', name: 'Português Brasileiro' },
-        { code: 'en', name: 'English' },
-        { code: 'es', name: 'Español' },
-        { code: 'fr', name: 'Français' }
+        { code: 'pt', name: 'Português Brasileiro' }
+        // Foco em qualidade PT-BR. Depois pode habilitar outros se quiser.
     ];
 
     let openai: OpenAI | null = null;
     let genAIModel: any = null;
-    let modelName = "gpt-4-turbo-preview";
+    let modelName = "gpt-4-turbo-preview"; // Default fallback
 
+    // --- CONFIGURAÇÃO DO WORKER (IA) ---
     if (provider === 'groq') {
         openai = new OpenAI({
             apiKey,
             baseURL: 'https://api.groq.com/openai/v1',
             dangerouslyAllowBrowser: true
         });
-        modelName = "llama-3.3-70b-versatile";
+        modelName = "llama-3.3-70b-versatile"; // O CARRO CHEFE
     } else if (provider === 'openai') {
         let baseURL = undefined;
         if (apiKey.startsWith('ghp_')) {
@@ -324,105 +319,120 @@ export async function generateEbookContent(
         genAIModel = genAI.getGenerativeModel({ model: 'gemini-pro' });
     }
 
-    for (let langIndex = 0; langIndex < languages.length; langIndex++) {
-        const lang = languages[langIndex];
-        const progress = ((langIndex + 1) / languages.length) * 100;
-        onProgress?.(`Gerando em ${lang.name}...`, progress);
-
-        const prompt = `
-Você é um escritor profissional de eBooks. Crie o conteúdo COMPLETO de um eBook com as seguintes especificações:
-
-TÍTULO: ${structure.titulo}
-SUBTÍTULO: ${structure.subtitulo}
-AUTOR: ${structure.autor}
-PÚBLICO-ALVO: ${structure.publicoAlvo}
-TOM DO TEXTO: ${structure.tomTexto}
-IDIOMA: ${lang.name}
-
-CAPÍTULOS A CRIAR:
-${structure.capitulos.map((c, i) => `${i + 1}. ${c}`).join('\n')}
-
-INSTRUÇÕES:
-1. Escreva TODO o conteúdo em ${lang.name}
-2. Seja CONCISO E DIRETO. Crie um eBook curto e impactante (Mini-Book).
-3. Cada capítulo deve ter cerca de 300 a 400 palavras (NÃO ULTRAPASSE, para não cortar a resposta).
-4. Use parágrafos curtos e tópicos.
-5. Mantenha o tom ${structure.tomTexto} consistente
-6. Crie uma introdução e conclusão breves.
-
-FORMATO DE RESPOSTA (JSON PURO):
-{
-  "title": "título em ${lang.name}",
-  "subtitle": "subtítulo em ${lang.name}",
-  "author": "${structure.autor}",
-  "introduction": "texto da introdução",
-  "chapters": [
-    {
-      "title": "título do capítulo",
-      "content": "conteúdo do capítulo (use markdown para negrito/títulos)"
-    }
-  ],
-  "conclusion": "texto da conclusão",
-  "aboutAuthor": "bio curta"
-}
-
-IMPORTANTE: A resposta DEVE ser um JSON vádido completo. Se for muito longo, corte o conteúdo, mas FECHE o JSON corretamente. Responda APENAS com o JSON.`;
-
+    // Função Helper para chamar a IA para cada pedaço
+    const generatePart = async (prompt: string): Promise<string> => {
         try {
-            let jsonText = "";
-
             if (provider === 'openai' && openai) {
                 const completion = await openai.chat.completions.create({
                     model: modelName,
-                    messages: [{ role: "user", content: prompt }],
-                    response_format: { type: "json_object" }
+                    messages: [{ role: "user", content: prompt }]
                 });
-                jsonText = completion.choices[0].message.content || "";
+                return completion.choices[0].message.content || "";
             } else if (genAIModel) {
                 const response = await genAIModel.generateContent(prompt);
-                const text = response.response.text();
-                jsonText = text.trim();
-                // Strip markdown code blocks if present
-                if (jsonText.startsWith('```json')) {
-                    jsonText = jsonText.replace(/^```json\n?/, '').replace(/\n?```$/, '');
-                } else if (jsonText.startsWith('```')) {
-                    jsonText = jsonText.replace(/^```\n?/, '').replace(/\n?```$/, '');
-                }
+                return response.response.text();
+            } else if (openai) { // Groq logic uses openai client
+                const completion = await openai.chat.completions.create({
+                    model: modelName,
+                    messages: [{ role: "user", content: prompt }]
+                });
+                return completion.choices[0].message.content || "";
             }
-
-            const ebookContent = JSON.parse(jsonText);
-
-            // Calcular metadados
-            let totalWords = 0;
-            totalWords += ebookContent.introduction?.split(/\s+/).length || 0;
-            totalWords += ebookContent.conclusion?.split(/\s+/).length || 0;
-            for (const chapter of ebookContent.chapters || []) {
-                totalWords += chapter.content?.split(/\s+/).length || 0;
-            }
-            const pageCount = Math.ceil(totalWords / 250);
-
-            result[lang.code as keyof MultiLanguageEbook] = {
-                title: ebookContent.title || structure.titulo,
-                subtitle: ebookContent.subtitle || structure.subtitulo,
-                author: ebookContent.author || structure.autor,
-                introduction: ebookContent.introduction || '',
-                chapters: ebookContent.chapters || [],
-                conclusion: ebookContent.conclusion || '',
-                aboutAuthor: ebookContent.aboutAuthor || '',
-                metadata: {
-                    language: lang.code,
-                    pageCount,
-                    wordCount: totalWords,
-                    generatedAt: new Date().toISOString()
-                }
-            };
-
-        } catch (error) {
-            console.error(`Erro ao gerar conteúdo em ${lang.name}:`, error);
-            throw new Error(`Erro ao gerar conteúdo em ${lang.name}: ${error}`);
+            return "";
+        } catch (e) {
+            console.error("Erro ao gerar parte:", e);
+            throw e;
         }
+    };
+
+    // --- LOOP DE PRODUÇÃO SEQUENCIAL ---
+    for (let langIndex = 0; langIndex < languages.length; langIndex++) {
+        const lang = languages[langIndex];
+
+        // Estrutura Base
+        const ebookContent: EbookContent = {
+            title: structure.titulo,
+            subtitle: structure.subtitulo,
+            author: structure.autor,
+            introduction: "",
+            chapters: [],
+            conclusion: "",
+            aboutAuthor: "",
+            metadata: {
+                language: lang.code,
+                pageCount: 0,
+                wordCount: 0,
+                generatedAt: new Date().toISOString()
+            }
+        };
+
+        // 1. INTRODUÇÃO
+        onProgress?.(`Escrevendo Introdução (${lang.name})...`, 5);
+        const introPrompt = `Atue como um Autor Best-Seller.
+Escreva a INTRODUÇÃO do livro "${structure.titulo}".
+Público Alvo: ${structure.publicoAlvo}.
+Tom: ${structure.tomTexto}.
+Idioma: ${lang.name}.
+Objetivo: Engajar o leitor e apresentar a promessa do livro.
+Formato: Texto corrido em Markdown. Mínimo 800 palavras.`;
+
+        ebookContent.introduction = await generatePart(introPrompt);
+
+        // 2. CAPÍTULOS (LOOP DE ALTA CAPACIDADE)
+        for (let i = 0; i < structure.capitulos.length; i++) {
+            const capTitle = structure.capitulos[i];
+            const progress = 10 + ((i + 1) / structure.capitulos.length) * 80; // 10% a 90%
+            onProgress?.(`Escrevendo Cap. ${i + 1}/${structure.capitulos.length}: ${capTitle}...`, progress);
+
+            const capPrompt = `Atue como um Autor Best-Seller.
+Escreva o CAPÍTULO ${i + 1}: "${capTitle}" do livro "${structure.titulo}".
+Contexto: Este é um capítulo de um livro sobre "${structure.titulo}".
+Público: ${structure.publicoAlvo}. 
+Tom: ${structure.tomTexto}. 
+Idioma: ${lang.name}.
+
+REGRAS DE PRODUÇÃO:
+1. Escreva um conteúdo PROFUNDO, TÉCNICO E DETALHADO (Mínimo 2000 palavras).
+2. Não economize em exemplos, explicações e listas.
+3. Use Markdown para subtítulos (##), negrito, bullets.
+4. Retorne APENAS O CONTEÚDO DO CAPÍTULO. Sem preâmbulos.`;
+
+            const content = await generatePart(capPrompt);
+            ebookContent.chapters.push({
+                title: capTitle,
+                content: content
+            });
+        }
+
+        // 3. CONCLUSÃO
+        onProgress?.(`Finalizando Conclusão...`, 95);
+        const conclusionPrompt = `Escreva uma CONCLUSÃO inspiradora e uma BIO DO AUTOR para o livro "${structure.titulo}".
+Idioma: ${lang.name}.
+Retorne APENAS um JSON válido neste formato:
+{ "conclusion": "texto da conclusão...", "aboutAuthor": "texto sobre o autor..." }`;
+
+        try {
+            const jsonResp = await generatePart(conclusionPrompt);
+            const cleanJson = jsonResp.replace(/```json/g, '').replace(/```/g, '').trim();
+            const finalData = JSON.parse(cleanJson);
+            ebookContent.conclusion = finalData.conclusion || await generatePart("Escreva uma conclusão curta.");
+            ebookContent.aboutAuthor = finalData.aboutAuthor || "Autor Especialista.";
+        } catch (e) {
+            // Fallback se falhar json
+            ebookContent.conclusion = "Obrigado por ler.";
+            ebookContent.aboutAuthor = "Autor Nexus.";
+        }
+
+        // 4. METADADOS FINAIS
+        let totalWords = 0;
+        totalWords += (ebookContent.introduction?.split(/\s+/)?.length || 0);
+        ebookContent.chapters.forEach(c => totalWords += (c.content?.split(/\s+/)?.length || 0));
+        ebookContent.metadata.wordCount = totalWords;
+        ebookContent.metadata.pageCount = Math.ceil(totalWords / 300); // Média de palavras por pág
+
+        result[lang.code as keyof MultiLanguageEbook] = ebookContent;
     }
 
-    onProgress?.('Concluído!', 100);
+    onProgress?.('Concluído! Seu Ebook Premium está pronto.', 100);
     return result as MultiLanguageEbook;
 }
