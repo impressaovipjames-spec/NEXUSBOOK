@@ -344,29 +344,29 @@ ${structure.capitulos.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 
 INSTRUÇÕES:
 1. Escreva TODO o conteúdo em ${lang.name}
-2. Cada capítulo deve ter no mínimo 800 palavras
-3. Use parágrafos curtos para facilitar a leitura
-4. Inclua exemplos práticos e dicas acionáveis
+2. Seja CONCISO E DIRETO. Crie um eBook curto e impactante (Mini-Book).
+3. Cada capítulo deve ter cerca de 300 a 400 palavras (NÃO ULTRAPASSE, para não cortar a resposta).
+4. Use parágrafos curtos e tópicos.
 5. Mantenha o tom ${structure.tomTexto} consistente
-6. Crie uma introdução cativante e uma conclusão inspiradora
+6. Crie uma introdução e conclusão breves.
 
-FORMATO DE RESPOSTA (JSON):
+FORMATO DE RESPOSTA (JSON PURO):
 {
   "title": "título em ${lang.name}",
   "subtitle": "subtítulo em ${lang.name}",
   "author": "${structure.autor}",
-  "introduction": "texto completo da introdução (mínimo 500 palavras)",
+  "introduction": "texto da introdução",
   "chapters": [
     {
-      "title": "título do capítulo 1",
-      "content": "conteúdo completo do capítulo 1 (mínimo 800 palavras)"
+      "title": "título do capítulo",
+      "content": "conteúdo do capítulo (use markdown para negrito/títulos)"
     }
   ],
-  "conclusion": "texto completo da conclusão (mínimo 400 palavras)",
-  "aboutAuthor": "breve bio do autor (100 palavras)"
+  "conclusion": "texto da conclusão",
+  "aboutAuthor": "bio curta"
 }
 
-Responda APENAS com o JSON válido, sem explicações adicionais.`;
+IMPORTANTE: A resposta DEVE ser um JSON vádido completo. Se for muito longo, corte o conteúdo, mas FECHE o JSON corretamente. Responda APENAS com o JSON.`;
 
         try {
             let jsonText = "";
