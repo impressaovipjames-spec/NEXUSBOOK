@@ -291,8 +291,10 @@ export async function generateEbookContent(
     const provider = forcedProvider || detectProvider(apiKey);
     const result: Partial<MultiLanguageEbook> = {};
     const languages = [
-        { code: 'pt', name: 'Português Brasileiro' }
-        // Foco em qualidade PT-BR. Depois pode habilitar outros se quiser.
+        { code: 'pt', name: 'Português Brasileiro' },
+        { code: 'en', name: 'English' },
+        { code: 'es', name: 'Español' },
+        { code: 'fr', name: 'Français' }
     ];
 
     let openai: OpenAI | null = null;
