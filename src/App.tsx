@@ -275,16 +275,28 @@ const RightPanel: React.FC<RightPanelProps> = ({
 // =============================
 // CHAT AREA (CENTRAL)
 // =============================
+// =============================
+// CHAT AREA (CENTRAL)
+// =============================
 const ChatArea: React.FC<ChatAreaProps> = ({ messages, onSendMessage, isThinking, chatEndRef, onConfigApi, apiKey }) => {
     const [input, setInput] = useState("");
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Efeito para focar quando isThinking volta para false (IA terminou de responder)
+    useEffect(() => {
+        if (!isThinking && apiKey) {
+            setTimeout(() => {
+                inputRef.current?.focus();
+            }, 100);
+        }
+    }, [isThinking, apiKey]);
 
     const handleSend = () => {
         if (!input.trim() || isThinking) return;
         onSendMessage(input);
         setInput("");
-        // Manter foco no input após enviar
-        setTimeout(() => inputRef.current?.focus(), 0);
+        // Foco imediato, mas o useEffect garante o foco quando a IA terminar
+        inputRef.current?.focus();
     };
 
     return (
@@ -306,8 +318,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, onSendMessage, isThinking
                 )}
             </div>
 
-            {/* Mensagens - ÁREA COM SCROLL PRÓPRIO */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+            {/* Mensagens - ÁREA COM SCROLL PRÓPRIO E AUTO-RESIZE */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar min-h-0">
                 {messages.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center opacity-40">
                         <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mb-6 shadow-2xl shadow-purple-500/20">
@@ -377,7 +389,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, onSendMessage, isThinking
 // DASHBOARD PRINCIPAL (SOLARIS)
 // =============================
 export default function App() {
-    // --- ESTADOS GLOBAIS (Mantendo lógica original) ---
+    // ... (States omitted for brevity, they are inside the component) 
     const [apiKey, setApiKey] = useState("");
     const [showKeyModal, setShowKeyModal] = useState(false);
     const [keyInput, setKeyInput] = useState("");
@@ -480,6 +492,7 @@ export default function App() {
     const handleGenerate = async () => {
         if (!detectedStructure || !apiKey) return
 
+        // ... (resto da função igual)
         setIsGenerating(true)
         setGenerationProgress(0)
         setGenerationStatus('Iniciando geração...')
@@ -529,13 +542,14 @@ export default function App() {
 
 
     return (
-        <div className="min-h-screen bg-[#0F0B2A] text-white font-sans overflow-hidden flex flex-col">
+        <div className="h-screen bg-[#0F0B2A] text-white font-sans overflow-hidden flex flex-col fixed inset-0">
             <style>{`
                 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
             `}</style>
 
+            {/* ... (BACKGROUND, HEADER iguaiss) */}
             {/* BACKGROUND DECORATION */}
             <div className="fixed inset-0 pointer-events-none overflow-hidden">
                 <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-900/20 rounded-full blur-[120px]" />
@@ -571,7 +585,7 @@ export default function App() {
             </header>
 
             {/* MAIN GRID */}
-            <main className="flex-1 p-6 pt-0 gap-6 grid grid-cols-12 h-[calc(100vh-64px)] overflow-hidden relative z-10">
+            <main className="flex-1 p-6 pt-0 gap-6 grid grid-cols-12 overflow-hidden relative z-10 min-h-0">
 
                 {/* ESQUERDA - 3 COLUNAS */}
                 <div className="col-span-3 h-full overflow-hidden">
