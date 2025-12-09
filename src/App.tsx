@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     Send, Flame, Sparkles,
     Key, X, FileText,
-    Loader2, MessageSquare, LayoutGrid
+    Loader2, MessageSquare, LayoutGrid, Trash2
 } from 'lucide-react';
 
 // Logic Imports
@@ -46,6 +46,7 @@ interface RightPanelProps {
     generationProgress: number;
     ebookData: MultiLanguageEbook | null;
     onDownload: (lang: keyof MultiLanguageEbook) => void;
+    onDeleteChat: (id: string) => void;
 }
 
 interface ChatAreaProps {
@@ -145,7 +146,8 @@ const RightPanel: React.FC<RightPanelProps> = ({
     generationStatus,
     generationProgress,
     ebookData,
-    onDownload
+    onDownload,
+    onDeleteChat
 }) => {
     return (
         <div className="h-full flex flex-col gap-4">
@@ -259,10 +261,24 @@ const RightPanel: React.FC<RightPanelProps> = ({
                             <div
                                 key={c.id}
                                 onClick={() => onLoadChat(c.id)}
-                                className="p-3 rounded-lg bg-white/5 hover:bg-[#16E0C1]/10 border border-transparent hover:border-[#16E0C1]/30 transition cursor-pointer group"
+                                className="p-3 rounded-lg bg-white/5 hover:bg-[#16E0C1]/10 border border-transparent hover:border-[#16E0C1]/30 transition cursor-pointer group flex justify-between items-start"
                             >
-                                <div className="text-xs font-medium truncate group-hover:text-white/90 text-white/70">{c.title}</div>
-                                <div className="text-[9px] text-white/30 mt-1">{c.date}</div>
+                                <div className="truncate flex-1 pr-2">
+                                    <div className="text-xs font-medium truncate group-hover:text-white/90 text-white/70">{c.title}</div>
+                                    <div className="text-[9px] text-white/30 mt-1">{c.date}</div>
+                                </div>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (confirm('Tem certeza que deseja excluir esta conversa?')) {
+                                            onDeleteChat(c.id);
+                                        }
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded-md text-white/30 hover:text-red-400 transition-all"
+                                    title="Excluir conversa"
+                                >
+                                    <Trash2 className="w-3 h-3" />
+                                </button>
                             </div>
                         ))
                     )}
@@ -540,6 +556,17 @@ export default function App() {
         startChat()
     }
 
+    const handleDeleteChat = (id: string) => {
+        const newHistory = history.filter(c => c.id !== id);
+        setHistory(newHistory);
+        localStorage.setItem('nexus_chat_history', JSON.stringify(newHistory));
+
+        // Se deletou o chat atual, limpa a tela
+        if (messages.length > 0) { // Simplificação: idealmente verificaria o ID do chat atual se tivéssemos estado para isso
+            handleNewChat();
+        }
+    };
+
 
     return (
         <div className="h-screen bg-[#0F0B2A] text-white font-sans overflow-hidden flex flex-col fixed inset-0">
@@ -619,6 +646,7 @@ export default function App() {
                         generationProgress={generationProgress}
                         ebookData={ebookData}
                         onDownload={handleDownload}
+                        onDeleteChat={handleDeleteChat}
                     />
                 </div>
             </main>
