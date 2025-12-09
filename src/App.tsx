@@ -277,17 +277,20 @@ const RightPanel: React.FC<RightPanelProps> = ({
 // =============================
 const ChatArea: React.FC<ChatAreaProps> = ({ messages, onSendMessage, isThinking, chatEndRef, onConfigApi, apiKey }) => {
     const [input, setInput] = useState("");
+    const inputRef = useRef<HTMLInputElement>(null);
 
     const handleSend = () => {
         if (!input.trim() || isThinking) return;
         onSendMessage(input);
         setInput("");
+        // Manter foco no input após enviar
+        setTimeout(() => inputRef.current?.focus(), 0);
     };
 
     return (
         <div className="flex flex-col h-full bg-white/5 rounded-2xl shadow-2xl backdrop-blur-sm border border-white/5 overflow-hidden relative">
             {/* Header do Chat */}
-            <div className="h-14 border-b border-white/5 flex items-center justify-between px-6 bg-black/20">
+            <div className="h-14 border-b border-white/5 flex items-center justify-between px-6 bg-black/20 shrink-0">
                 <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-[#16E0C1] animate-pulse" />
                     <span className="text-sm font-medium text-white/90">Assistente Criativo</span>
@@ -303,7 +306,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, onSendMessage, isThinking
                 )}
             </div>
 
-            {/* Mensagens */}
+            {/* Mensagens - ÁREA COM SCROLL PRÓPRIO */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
                 {messages.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center opacity-40">
@@ -344,10 +347,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, onSendMessage, isThinking
                 <div ref={chatEndRef} />
             </div>
 
-            {/* Input Area */}
-            <div className="p-4 bg-black/20 border-t border-white/5">
+            {/* Input Area - FIXO NO BOTTOM */}
+            <div className="p-4 bg-black/20 border-t border-white/5 shrink-0">
                 <div className="flex gap-2 relative">
                     <input
+                        ref={inputRef}
                         className="flex-1 bg-[#13141a] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#7C3AED] transition-colors placeholder:text-white/20"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
